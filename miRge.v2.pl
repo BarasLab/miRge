@@ -176,7 +176,7 @@ sub trimRaw {
 	my $fh;
 	
 	$$logHash{'quantStats'}[$sampleIndex]{'cpuTime-trim'} = time;
-	system("$cutAdaptBinary -q 10 -m 16 -a TGGAATTCTCGGGTGCCAAGGAACTCCAG -e 0.12 --discard-untrimmed -o $outfile $infile > /dev/null");
+	system("python trim_file.py --cutadapt=$cutAdaptBinary --threads=$numCPU --infile=$infile --outfile=$outfile");
 	$$logHash{'quantStats'}[$sampleIndex]{'cpuTime-trim'} = time - $$logHash{'quantStats'}[$sampleIndex]{'cpuTime-trim'};
 	
 	open $fh, "<", "$infile.log";
@@ -560,8 +560,8 @@ sub writeDataToCSV {
 	open $fh, ">", $mappedFile;
 	print $fh "uniqueSequence, annotFlag, $$annotNames[0], $$annotNames[1], $$annotNames[2], $$annotNames[3], $$annotNames[4]";
 	for ($i=0;$i<scalar(@sampleFiles);$i++) {
-			print $fh ", $sampleFiles[$i]";
-		}
+		print $fh ", $sampleFiles[$i]";
+	}
 	print $fh "\n";
 	# a hash to compare isomirs to their parent mirnas across samples
 	my %isomirHash;
@@ -606,8 +606,8 @@ sub writeDataToCSV {
 	open $fh, ">", $isomirFile;
 	print $fh "uniqueSequence, annotFlag, $$annotNames[0], $$annotNames[1], $$annotNames[2], $$annotNames[3], $$annotNames[4]";
 	for ($i=0;$i<scalar(@sampleFiles);$i++) {
-			print $fh ", $sampleFiles[$i]";
-		}
+		print $fh ", $sampleFiles[$i]";
+	}
 	print $fh "\n";
 	foreach $seqKey (keys %{$seqHash}) {
 		my $mirna = $$seqHash{$seqKey}{'annot'}[5];
