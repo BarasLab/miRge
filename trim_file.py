@@ -82,11 +82,13 @@ class Worker(Process):
 parser = argparse.ArgumentParser()
 parser.add_argument('--cutadapt', type=str)
 parser.add_argument('--infile', type=argparse.FileType('rb'))
+parser.add_argument('--outfile', type=argparse.FileType('wb'))
 parser.add_argument('--threads', type=int, default=1)
 
 def main():
     args = parser.parse_args()
     source = FastqIterator(args.infile)
+    dest = args.outfile
     outfile, outext = os.path.splitext(args.infile.name)
     if outext == '.gz':
         outfile, outext = os.path.splitext(outfile)
@@ -127,7 +129,7 @@ def main():
         time.sleep(1)
 
     # recombine all our files
-    with open('{0}_trim{1}'.format(outfile, outext), 'wb') as fout:
+    with dest as fout:
         for entry in fileinput.input(files):
             fout.write(entry)
 
