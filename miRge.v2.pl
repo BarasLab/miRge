@@ -97,7 +97,7 @@ $t = time;
 summarize();
 miRNAmerge();
 filter();
-generateGraphs();
+#generateGraphs();
 writeHtmlReport();
 writeDataToCSV();
 $t = time-$t;
@@ -176,7 +176,7 @@ sub trimRaw {
 	my $fh;
 	
 	$$logHash{'quantStats'}[$sampleIndex]{'cpuTime-trim'} = time;
-	system("$cutAdaptBinary $infile $outfile $numCPU $cutadaptPath $ngsutilsPath");
+	system("$cutAdaptBinary -q 10 -m 16 -a TGGAATTCTCGGGTGCCAAGGAACTCCAG -e 0.12 --discard-untrimmed -o $outfile $infile > /dev/null");
 	$$logHash{'quantStats'}[$sampleIndex]{'cpuTime-trim'} = time - $$logHash{'quantStats'}[$sampleIndex]{'cpuTime-trim'};
 	
 	open $fh, "<", "$infile.log";
