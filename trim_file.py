@@ -73,10 +73,11 @@ class Worker(Process):
 
     def run(self):
         for filename in iter(self.queue.get, None):
+            outfile, outext = os.path.splitext(filename)
             p = subprocess.Popen([self.cutadapt, '-q', '10', '-m', '16', '-a',
                                   self.adapter, '-e', '0.12', '--quiet',
                                   '--discard-untrimmed',
-                                  '-o', '{0}_trim'.format(filename), filename])
+                                  '-o', '{0}.trim{1}'.format(outfile, outext), filename])
             p.communicate()
 
 parser = argparse.ArgumentParser()
@@ -90,7 +91,9 @@ def main():
     source = FastqIterator(args.infile)
     dest = args.outfile
     outfile, outext = os.path.splitext(args.infile.name)
+    gzipped = False
     if outext == '.gz':
+        gzipped = True
         outfile, outext = os.path.splitext(outfile)
     chunksize = 1000000
     # make the new files, since we don't know its size from the beginning and it'd be wasteful
@@ -103,7 +106,9 @@ def main():
         worker.start()
 
     o = None
+    open_func = gzip.open if gzipped else open
     files = []
+    tmpfiles = []
     for index, reads in enumerate(source):
         newfile = index % chunksize == 0
         if newfile:
@@ -111,9 +116,11 @@ def main():
                 o.flush()
                 o.close()
                 read_queue.put(o.name)
-            filename = '{0}_{1}{2}'.format(outfile, str(index/chunksize), outext)
-            files.append('{0}_trim'.format(filename))
-            o = open(filename, 'wb')
+                tmpfiles.append(o.name)
+            filename = '{0}_{1}{2}{3}'.format(outfile, str(index/chunksize), outext, '.gz' if gzipped else '')
+            fbase, fext = os.path.splitext(filename)
+            files.append('{0}.trim{1}'.format(fbase, fext))
+            o = open_func(filename, 'wb')
         o.write('%s\n' % '\n'.join(reads))
 
     if index % chunksize:
@@ -132,6 +139,10 @@ def main():
     with dest as fout:
         for entry in fileinput.input(files):
             fout.write(entry)
+
+    # delete temp files
+    for filename in files+tmpfiles:
+        os.remove(filename)
 
 if __name__ == "__main__":
     sys.exit(main())
