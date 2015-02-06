@@ -20,13 +20,18 @@ my $ngsutilsPath = $miRgePath."miRge.seqUtils/ngsutils/";
 my $bowtiePath = $miRgePath."miRge.seqUtils/bowtie/";
 my $refPath = $miRgePath."miRge.seqLibs/";
 
+if(not -d $refPath){
+	mkdir $refPath;
+}
+
 my $settings={};
 my $help;
 my @sampleFiles;
+my $phred64 = '';
 
 GetOptions($settings,('help' => \$help,'adapter=s','species=s','CPU=s',
 	'SampleFiles=s','isomirCutoff=s', 'bowtie=s', 'mirna=s', 'hairpin=s',
-	'contaminants=s', 'est=s', 'cutadapt=s', 'ngsutils=s'));
+	'contaminants=s', 'est=s', 'cutadapt=s', 'ngsutils=s', 'phred64' => \$phred64));
 
 @sampleFiles = split(',', $$settings{'SampleFiles'});
 my $filterFlag = $$settings{adapter}||"none";
@@ -36,29 +41,14 @@ my $numCPU = $$settings{CPU}||1;
 my $cutAdaptBinary = $$settings{cutadapt}||File::Spec->catdir($cutadaptPath, "cutadapt_forked.sh");
 my $bowtieBinary = $$settings{bowtie}||File::Spec->catdir($bowtiePath, "bowtie");
 my $ngsutilsPath = $$settings{ngsutils}||$ngsutilsPath;
-my $mirnaBWT;
-my $hairpinBWT;
-my $contBWT;
-my $estBWT;
-# this should be made so the databases are prefixed by the same species name to make it simple
-if($speciesType eq 'human'){
-	$mirnaBWT = $refPath.$speciesType."_mirna_ebwt/hs_mirna";
-	$hairpinBWT = $refPath.$speciesType."_hairpin_ebwt/hs_hairpin";
-	$contBWT = $refPath.$speciesType."_snoribturna_ebwt/hs_snoribturna";
-	$estBWT = $refPath.$speciesType."_est_ebwt/hs_est";
-}
-elsif($speciesType eq 'mouse'){
-	$mirnaBWT = $refPath.$speciesType."_mirna_ebwt/mmu_mirna";
-	$hairpinBWT = $refPath.$speciesType."_hairpin_ebwt/mmu_hairpin";
-	$contBWT = $refPath.$speciesType."_snoribturna_ebwt/mmu_snoribturna";
-	$estBWT = $refPath.$speciesType."_est_ebwt/mmu_est";
-}
-else{
-	$mirnaBWT = $$settings{mirna};
-	$hairpinBWT = $$settings{hairpin};
-	$contBWT = $$settings{contaminants};
-	$estBWT = $$settings{est};
-}
+my $bwtIndexDir = File::Spec->catdir($refPath,$speciesType);
+
+my $mirnaBWT = File::Spec->catdir($bwtIndexDir,"mirna");
+my $hairpinBWT = File::Spec->catdir($bwtIndexDir,"hairpin");
+my $contBWT = File::Spec->catdir($bwtIndexDir,"contaminants");
+my $estBWT = File::Spec->catdir($bwtIndexDir,"est");
+
+
 
 my $seqHash = {}; # key is nucleotide sequence, each record is a hash with
 		  # 'annot' a boolean array where element [0] is overall matched status and each element [i] the matched status from each respective round of alignment
@@ -77,19 +67,19 @@ pod2usage( -verbose => 1) if( $numCPU =~ m/\D/ );
 print "\nChecking for bowtie and indices ...\n";
 $t = time;
 checkBowtie();
-$t = time-$t;
+$t = getTimeDelta($t,time);
 print "Bowtie and indices present ($t sec).\n";
 
 print "\nStarting quantitation pipeline ...\n";
 $t = time;
 runQuantitationPipeline();
-$t = time-$t;
+$t = getTimeDelta($t,time);
 print "All samples completed ($t sec).\n";
 
 print "\nStarting annotation pipeline ...\n";
 $t = time;
 runAnnotationPipeline();
-$t = time-$t;
+$t = getTimeDelta($t,time);
 print "All annotation cycles completed ($t sec).\n";
 
 print "\nSummarizing and tabulating results ...\n";
@@ -100,19 +90,49 @@ filter();
 #generateGraphs();
 writeHtmlReport();
 writeDataToCSV();
-$t = time-$t;
+$t = getTimeDelta($t,time);
 print "Completed ($t sec)\n";
 
 ############################# sub-routines #################################
+sub calcEntropy{
+	my @array = $_[0];
+	my $sum = sumArray(@array);
+	my $entropy = 0;
+	my $i;
+	my $freq;
+	for ($i=0;$i<scalar(@array);$i++){
+		$freq = $array[$i]/$sum;
+		$entropy += -1*$freq*log($freq)/log(2);
+	}
+	return $entropy;
+}
+
+sub getTimeDelta{
+	my $start = $_[0];
+	my $end = $_[1];
+	return sprintf('%.2f', $end-$start);
+}
+
 sub checkBowtieIndex {
 	my $path = $_[0];
+	my @indexes = glob("$path.*.ebwt");
+	if(scalar(@indexes)){
+		return $path;
+	}
+	my $index_type = $_[2];
+	if($$settings{$index_type}){
+		$path = $$settings{$index_type};
+	}
 	if(!(-e $path)){
 		die "$path is unable to be found, please check the path.";
+	}
+	unless(-e $bwtIndexDir){
+		mkdir($bwtIndexDir);
 	}
 	my $builder = $_[1];
 	my($filename, $dirs, $suffix) = fileparse($path);
 	if($suffix == 'fasta' || $suffix == 'fa' || $suffix == 'fna'){
-		my $file = File::Spec->catdir($dirs, $filename);
+		my $file = File::Spec->catdir($bwtIndexDir, $index_type);
 		my @files = glob("$file.*.ebwt");
 		if(scalar(@files)){
 			return $file;
@@ -139,10 +159,10 @@ sub checkBowtie {
 	else{
 		die "Bowtie cannot be found at $bowtieBinary";
 	}
-	$mirnaBWT = checkBowtieIndex($mirnaBWT, $bowtieIndex);
-	$hairpinBWT = checkBowtieIndex($hairpinBWT, $bowtieIndex);
-	$contBWT = checkBowtieIndex($contBWT, $bowtieIndex);
-	$estBWT = checkBowtieIndex($estBWT, $bowtieIndex);
+	$mirnaBWT = checkBowtieIndex($mirnaBWT, $bowtieIndex, 'mirna');
+	$hairpinBWT = checkBowtieIndex($hairpinBWT, $bowtieIndex, 'hairpin');
+	$contBWT = checkBowtieIndex($contBWT, $bowtieIndex, 'contaminants');
+	$estBWT = checkBowtieIndex($estBWT, $bowtieIndex, 'est');
 }
 
 sub runQuantitationPipeline {
@@ -176,7 +196,12 @@ sub trimRaw {
 	my $fh;
 	
 	$$logHash{'quantStats'}[$sampleIndex]{'cpuTime-trim'} = time;
-	system("python trim_file.py --cutadapt=$cutAdaptBinary --threads=$numCPU --infile=$infile --outfile=$outfile");
+	if($phred64){
+		system("python trim_file.py --cutadapt=$cutAdaptBinary --threads=$numCPU --infile=$infile --outfile=$outfile --phred64" );
+	}
+	else{
+		system("python trim_file.py --cutadapt=$cutAdaptBinary --threads=$numCPU --infile=$infile --outfile=$outfile" );
+	}
 	$$logHash{'quantStats'}[$sampleIndex]{'cpuTime-trim'} = time - $$logHash{'quantStats'}[$sampleIndex]{'cpuTime-trim'};
 	
 	open $fh, "<", "$infile.log";
@@ -213,7 +238,7 @@ sub quantReads {
 			$$seqHash{$seqKey}{'annot'}[0] = 0;
 			$$seqHash{$seqKey}{'length'} = length($seqKey);
 		}
-		$$readLengthHash{$$seqHash{$seqKey}{'length'}}[$sampleIndex] += $$seqHash{$seqKey}{'quant'}[$sampleIndex];		
+		$$readLengthHash{$$seqHash{$seqKey}{'length'}}[$sampleIndex] += $$seqHash{$seqKey}{'quant'}[$sampleIndex];
 	}
 
 	$$logHash{'quantStats'}[$sampleIndex]{'cpuTime-uniq'} = time - $$logHash{'quantStats'}[$sampleIndex]{'cpuTime-uniq'};
@@ -225,12 +250,17 @@ sub runAnnotationPipeline {
 	my $alignmentResult;	   
 
 	my $lengthFilters = [-26,25,0,0,0];
+	my $bwtCmd = "$bowtieBinary --threads $numCPU";
+	if($phred64){
+		$bwtCmd = "$bwtCmd --phred64-quals";
+	}
+	
 	my $bwtCmdLines = [
-		"$bowtieBinary --threads $numCPU $mirnaBWT -n 0 -f SeqToAnnot.fasta 1>SeqToAnnot.sam 2>SeqToAnnot.log",
-		"$bowtieBinary --threads $numCPU $hairpinBWT -n 1 -f SeqToAnnot.fasta 1>SeqToAnnot.sam 2>SeqToAnnot.log",
-		"$bowtieBinary --threads $numCPU $contBWT -n 1 -f SeqToAnnot.fasta 1>SeqToAnnot.sam 2>SeqToAnnot.log",
-		"$bowtieBinary --threads $numCPU $estBWT -n 0 -f SeqToAnnot.fasta 1>SeqToAnnot.sam 2>SeqToAnnot.log",
-		"$bowtieBinary --threads $numCPU $mirnaBWT -f -l 15 -5 1 -3 2 -n 2 SeqToAnnot.fasta 1>SeqToAnnot.sam 2>SeqToAnnot.log"
+		"$bwtCmd $mirnaBWT -n 0 -f SeqToAnnot.fasta 1>SeqToAnnot.sam 2>SeqToAnnot.log",
+		"$bwtCmd $hairpinBWT -n 1 -f SeqToAnnot.fasta 1>SeqToAnnot.sam 2>SeqToAnnot.log",
+		"$bwtCmd $contBWT -n 1 -f SeqToAnnot.fasta 1>SeqToAnnot.sam 2>SeqToAnnot.log",
+		"$bwtCmd $estBWT -n 0 -f SeqToAnnot.fasta 1>SeqToAnnot.sam 2>SeqToAnnot.log",
+		"$bwtCmd $mirnaBWT -f -l 15 -5 1 -3 2 -n 2 SeqToAnnot.fasta 1>SeqToAnnot.sam 2>SeqToAnnot.log"
 	]; 
 	# -- ALIGNMENT 1 -- length < 26, up to 0 mismatch to miRNA
 	# -- ALIGNMENT 2 -- length > 25, up to 1 mismatch to hairpin
@@ -400,9 +430,7 @@ sub miRNAmerge {
 	else {
 		$mergeFile = 'miRNA_merges.csv';
 	}
-	if(not -d $refPath){
-		mkdir $refPath;
-	}
+	
 	open $fh, "<", $refPath.$mergeFile;
 	while ($line = <$fh>) {
 		chomp($line);
@@ -901,13 +929,18 @@ miRge.v1.pl takes the following arguments:
 =item --species human|mouse
 										
 						Specify which reference species should be used. Used to align with 
-						miRge provided references.
+						miRge provided references. If you provide your own reference files as well,
+						this will be the directory they are stored under -- so you only have to 
+						provide them once. We recommend appending a version number or an identifier
+						to keep these unique -- such as 'human_38'.
 						default: human
 
 =item --CPU #
 									
 						Sepcify The number of processors to use for trimming, qc, and alignment.
 						default: 1
+						
+=item --phred64					Input fastq files are in phred64 format.
 
 =back
 

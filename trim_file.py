@@ -65,9 +65,10 @@ class FastqIterator(GenericIterator):
 
 
 class Worker(Process):
-    def __init__(self, queue=None, cutadapt=None, adapter='TGGAATTCTCGGGTGCCAAGGAACTCCAG'):
+    def __init__(self, queue=None, cutadapt=None, adapter='TGGAATTCTCGGGTGCCAAGGAACTCCAG', phred64=False):
         super(Worker, self).__init__()
         self.queue=queue
+        self.phred64 = False
         self.cutadapt = cutadapt
         self.adapter = adapter
 
@@ -75,7 +76,8 @@ class Worker(Process):
         for filename in iter(self.queue.get, None):
             outfile, outext = os.path.splitext(filename)
             p = subprocess.Popen([self.cutadapt, '-q', '10', '-m', '16', '-a',
-                                  self.adapter, '-e', '0.12', '--quiet',
+                                  self.adapter, '-e', '0.12', '--quality-base',
+                                  '64' if self.phred64 else '33', '--quiet',
                                   '--discard-untrimmed',
                                   '-o', '{0}.trim{1}'.format(outfile, outext), filename])
             p.communicate()
@@ -85,12 +87,14 @@ parser.add_argument('--cutadapt', type=str)
 parser.add_argument('--infile', type=argparse.FileType('rb'))
 parser.add_argument('--outfile', type=argparse.FileType('wb'))
 parser.add_argument('--threads', type=int, default=1)
+parser.add_argument('--phred64', action='store_true')
 
 def main():
     args = parser.parse_args()
     source = FastqIterator(args.infile)
     dest = args.outfile
     outfile, outext = os.path.splitext(args.infile.name)
+    phred = args.phred64
     gzipped = False
     if outext == '.gz':
         gzipped = True
@@ -101,7 +105,7 @@ def main():
     read_queue = Queue()
     workers = []
     for i in xrange(args.threads):
-        worker = Worker(queue=read_queue, cutadapt=args.cutadapt)
+        worker = Worker(queue=read_queue, cutadapt=args.cutadapt, phred64=phred)
         workers.append(worker)
         worker.start()
 
@@ -121,6 +125,9 @@ def main():
             fbase, fext = os.path.splitext(filename)
             files.append('{0}.trim{1}'.format(fbase, fext))
             o = open_func(filename, 'wb')
+        if index < 100 and phred == 33:
+            if any([i for i in reads[3] if ord(i) > 74]):
+                phred = 64
         o.write('%s\n' % '\n'.join(reads))
 
     if index % chunksize:
@@ -143,6 +150,8 @@ def main():
     # delete temp files
     for filename in files+tmpfiles:
         os.remove(filename)
+
+    return phred
 
 if __name__ == "__main__":
     sys.exit(main())
