@@ -140,6 +140,10 @@ sub checkBowtieIndex {
 			return $file;
 		}
 		system("$builder $path $file");
+		my $bowtieMap = File::Spec->catdir($bwtIndexDir, "index.map");
+		my $bm;
+		open $bm, ">>", $bowtieMap;
+		print $bm "$path $file \n";
 		if(-e $file){
 			die "Error building $file.";
 		}
