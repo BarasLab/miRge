@@ -20,13 +20,18 @@ my $ngsutilsPath = $miRgePath."miRge.seqUtils/ngsutils/";
 my $bowtiePath = $miRgePath."miRge.seqUtils/bowtie/";
 my $refPath = $miRgePath."miRge.seqLibs/";
 
+if(not -d $refPath){
+	mkdir $refPath;
+}
+
 my $settings={};
 my $help;
 my @sampleFiles;
+my $phred64 = '';
 
 GetOptions($settings,('help' => \$help,'adapter=s','species=s','CPU=s',
 	'SampleFiles=s','isomirCutoff=s', 'bowtie=s', 'mirna=s', 'hairpin=s',
-	'contaminants=s', 'est=s', 'cutadapt=s', 'ngsutils=s'));
+	'contaminants=s', 'est=s', 'cutadapt=s', 'ngsutils=s', 'phred64' => \$phred64));
 
 @sampleFiles = split(',', $$settings{'SampleFiles'});
 my $filterFlag = $$settings{adapter}||"none";
@@ -36,29 +41,14 @@ my $numCPU = $$settings{CPU}||1;
 my $cutAdaptBinary = $$settings{cutadapt}||File::Spec->catdir($cutadaptPath, "cutadapt_forked.sh");
 my $bowtieBinary = $$settings{bowtie}||File::Spec->catdir($bowtiePath, "bowtie");
 my $ngsutilsPath = $$settings{ngsutils}||$ngsutilsPath;
-my $mirnaBWT;
-my $hairpinBWT;
-my $contBWT;
-my $estBWT;
-# this should be made so the databases are prefixed by the same species name to make it simple
-if($speciesType eq 'human'){
-	$mirnaBWT = $refPath.$speciesType."_mirna_ebwt/hs_mirna";
-	$hairpinBWT = $refPath.$speciesType."_hairpin_ebwt/hs_hairpin";
-	$contBWT = $refPath.$speciesType."_snoribturna_ebwt/hs_snoribturna";
-	$estBWT = $refPath.$speciesType."_est_ebwt/hs_est";
-}
-elsif($speciesType eq 'mouse'){
-	$mirnaBWT = $refPath.$speciesType."_mirna_ebwt/mmu_mirna";
-	$hairpinBWT = $refPath.$speciesType."_hairpin_ebwt/mmu_hairpin";
-	$contBWT = $refPath.$speciesType."_snoribturna_ebwt/mmu_snoribturna";
-	$estBWT = $refPath.$speciesType."_est_ebwt/mmu_est";
-}
-else{
-	$mirnaBWT = $$settings{mirna};
-	$hairpinBWT = $$settings{hairpin};
-	$contBWT = $$settings{contaminants};
-	$estBWT = $$settings{est};
-}
+my $bwtIndexDir = File::Spec->catdir($refPath,$speciesType);
+
+my $mirnaBWT = File::Spec->catdir($bwtIndexDir,"mirna");
+my $hairpinBWT = File::Spec->catdir($bwtIndexDir,"hairpin");
+my $contBWT = File::Spec->catdir($bwtIndexDir,"contaminants");
+my $estBWT = File::Spec->catdir($bwtIndexDir,"est");
+
+
 
 my $seqHash = {}; # key is nucleotide sequence, each record is a hash with
 		  # 'annot' a boolean array where element [0] is overall matched status and each element [i] the matched status from each respective round of alignment
@@ -77,19 +67,19 @@ pod2usage( -verbose => 1) if( $numCPU =~ m/\D/ );
 print "\nChecking for bowtie and indices ...\n";
 $t = time;
 checkBowtie();
-$t = time-$t;
+$t = getTimeDelta($t,time);
 print "Bowtie and indices present ($t sec).\n";
 
 print "\nStarting quantitation pipeline ...\n";
 $t = time;
 runQuantitationPipeline();
-$t = time-$t;
+$t = getTimeDelta($t,time);
 print "All samples completed ($t sec).\n";
 
 print "\nStarting annotation pipeline ...\n";
 $t = time;
 runAnnotationPipeline();
-$t = time-$t;
+$t = getTimeDelta($t,time);
 print "All annotation cycles completed ($t sec).\n";
 
 print "\nSummarizing and tabulating results ...\n";
@@ -100,19 +90,53 @@ filter();
 #generateGraphs();
 writeHtmlReport();
 writeDataToCSV();
-$t = time-$t;
+$t = getTimeDelta($t,time);
 print "Completed ($t sec)\n";
 
 ############################# sub-routines #################################
+sub calcEntropy{
+	my $arrRef = shift;
+	my $sum = 0;
+	my @arr = @{$arrRef};
+	for(my $i=0;$i<scalar(@arr);$i++){
+		$sum = $sum + $arr[$i];
+	}
+	my $entropy = 0;
+	for (my $i=0;$i<scalar(@arr);$i++){
+		if($arr[$i] > 0){
+			my $freq = $arr[$i]/$sum;
+			$entropy = $entropy + -1*$freq*log($freq)/log(2);
+		}
+	}
+	return $entropy;
+}
+
+sub getTimeDelta{
+	my $start = $_[0];
+	my $end = $_[1];
+	return sprintf('%.2f', $end-$start);
+}
+
 sub checkBowtieIndex {
 	my $path = $_[0];
+	my @indexes = glob("$path.*.ebwt");
+	if(scalar(@indexes)){
+		return $path;
+	}
+	my $index_type = $_[2];
+	if($$settings{$index_type}){
+		$path = $$settings{$index_type};
+	}
 	if(!(-e $path)){
 		die "$path is unable to be found, please check the path.";
+	}
+	unless(-e $bwtIndexDir){
+		mkdir($bwtIndexDir);
 	}
 	my $builder = $_[1];
 	my($filename, $dirs, $suffix) = fileparse($path);
 	if($suffix == 'fasta' || $suffix == 'fa' || $suffix == 'fna'){
-		my $file = File::Spec->catdir($dirs, $filename);
+		my $file = File::Spec->catdir($bwtIndexDir, $index_type);
 		my @files = glob("$file.*.ebwt");
 		if(scalar(@files)){
 			return $file;
@@ -139,10 +163,10 @@ sub checkBowtie {
 	else{
 		die "Bowtie cannot be found at $bowtieBinary";
 	}
-	$mirnaBWT = checkBowtieIndex($mirnaBWT, $bowtieIndex);
-	$hairpinBWT = checkBowtieIndex($hairpinBWT, $bowtieIndex);
-	$contBWT = checkBowtieIndex($contBWT, $bowtieIndex);
-	$estBWT = checkBowtieIndex($estBWT, $bowtieIndex);
+	$mirnaBWT = checkBowtieIndex($mirnaBWT, $bowtieIndex, 'mirna');
+	$hairpinBWT = checkBowtieIndex($hairpinBWT, $bowtieIndex, 'hairpin');
+	$contBWT = checkBowtieIndex($contBWT, $bowtieIndex, 'contaminants');
+	$estBWT = checkBowtieIndex($estBWT, $bowtieIndex, 'est');
 }
 
 sub runQuantitationPipeline {
@@ -176,7 +200,12 @@ sub trimRaw {
 	my $fh;
 	
 	$$logHash{'quantStats'}[$sampleIndex]{'cpuTime-trim'} = time;
-	system("python trim_file.py --cutadapt=$cutAdaptBinary --threads=$numCPU --infile=$infile --outfile=$outfile");
+	if($phred64){
+		system("python trim_file.py --cutadapt=$cutAdaptBinary --threads=$numCPU --infile=$infile --outfile=$outfile --phred64" );
+	}
+	else{
+		system("python trim_file.py --cutadapt=$cutAdaptBinary --threads=$numCPU --infile=$infile --outfile=$outfile" );
+	}
 	$$logHash{'quantStats'}[$sampleIndex]{'cpuTime-trim'} = time - $$logHash{'quantStats'}[$sampleIndex]{'cpuTime-trim'};
 	
 	open $fh, "<", "$infile.log";
@@ -213,7 +242,7 @@ sub quantReads {
 			$$seqHash{$seqKey}{'annot'}[0] = 0;
 			$$seqHash{$seqKey}{'length'} = length($seqKey);
 		}
-		$$readLengthHash{$$seqHash{$seqKey}{'length'}}[$sampleIndex] += $$seqHash{$seqKey}{'quant'}[$sampleIndex];		
+		$$readLengthHash{$$seqHash{$seqKey}{'length'}}[$sampleIndex] += $$seqHash{$seqKey}{'quant'}[$sampleIndex];
 	}
 
 	$$logHash{'quantStats'}[$sampleIndex]{'cpuTime-uniq'} = time - $$logHash{'quantStats'}[$sampleIndex]{'cpuTime-uniq'};
@@ -225,12 +254,17 @@ sub runAnnotationPipeline {
 	my $alignmentResult;	   
 
 	my $lengthFilters = [-26,25,0,0,0];
+	my $bwtCmd = "$bowtieBinary --threads $numCPU";
+	if($phred64){
+		$bwtCmd = "$bwtCmd --phred64-quals";
+	}
+	
 	my $bwtCmdLines = [
-		"$bowtieBinary --threads $numCPU $mirnaBWT -n 0 -f SeqToAnnot.fasta 1>SeqToAnnot.sam 2>SeqToAnnot.log",
-		"$bowtieBinary --threads $numCPU $hairpinBWT -n 1 -f SeqToAnnot.fasta 1>SeqToAnnot.sam 2>SeqToAnnot.log",
-		"$bowtieBinary --threads $numCPU $contBWT -n 1 -f SeqToAnnot.fasta 1>SeqToAnnot.sam 2>SeqToAnnot.log",
-		"$bowtieBinary --threads $numCPU $estBWT -n 0 -f SeqToAnnot.fasta 1>SeqToAnnot.sam 2>SeqToAnnot.log",
-		"$bowtieBinary --threads $numCPU $mirnaBWT -f -l 15 -5 1 -3 2 -n 2 SeqToAnnot.fasta 1>SeqToAnnot.sam 2>SeqToAnnot.log"
+		"$bwtCmd $mirnaBWT -n 0 -f SeqToAnnot.fasta 1>SeqToAnnot.sam 2>SeqToAnnot.log",
+		"$bwtCmd $hairpinBWT -n 1 -f SeqToAnnot.fasta 1>SeqToAnnot.sam 2>SeqToAnnot.log",
+		"$bwtCmd $contBWT -n 1 -f SeqToAnnot.fasta 1>SeqToAnnot.sam 2>SeqToAnnot.log",
+		"$bwtCmd $estBWT -n 0 -f SeqToAnnot.fasta 1>SeqToAnnot.sam 2>SeqToAnnot.log",
+		"$bwtCmd $mirnaBWT -f -l 15 -5 1 -3 2 -n 2 SeqToAnnot.fasta 1>SeqToAnnot.sam 2>SeqToAnnot.log"
 	]; 
 	# -- ALIGNMENT 1 -- length < 26, up to 0 mismatch to miRNA
 	# -- ALIGNMENT 2 -- length > 25, up to 1 mismatch to hairpin
@@ -400,9 +434,7 @@ sub miRNAmerge {
 	else {
 		$mergeFile = 'miRNA_merges.csv';
 	}
-	if(not -d $refPath){
-		mkdir $refPath;
-	}
+	
 	open $fh, "<", $refPath.$mergeFile;
 	while ($line = <$fh>) {
 		chomp($line);
@@ -536,19 +568,11 @@ sub writeHtmlReport {
 	close $fh;
 }
 
-sub sumArray {
-	my @array = $_[0];
-	my $arraySum = 0;
-	my $i;
-	for ($i=0;$i<scalar(@array);$i++){
-		$arraySum += $array[$i];
-	}
-	return $arraySum;
-}
 
 sub writeDataToCSV {
 	my $mappedFile = "miRge.$tStamp.mapped.csv";
 	my $isomirFile = "miRge.$tStamp.isomirs.csv";
+	my $isomirSampleFile = "miRge.$tStamp.isomirs.samples.csv";
 	my $unmappedFile = "miRge.$tStamp.unmapped.csv";
 	my $mirRPMFile = "miRge.$tStamp.miR.RPM.csv";
 	my $mirCountsFile = "miRge.$tStamp.miR.Counts.csv";
@@ -564,13 +588,14 @@ sub writeDataToCSV {
 	}
 	print $fh "\n";
 	# a hash to compare isomirs to their parent mirnas across samples
-	my %isomirHash;
-	for ($i=0;$i<scalar(@sampleFiles);$i++) {
-		$isomirHash{$i}{'isomirs'} = {};
-		$isomirHash{$i}{'mirnas'} = {};
-	}
+	# The hash is structured as such:
+	# {mirna: {"isomir": {sequence1: [sample 1, .., sample n], sequence2: ...},
+	#	   "mirna":  {sequence1: [sample 1, .., sample n], sequence2: ... }}}
+	# 
+	my %isomirHash = {};
 	foreach $seqKey (keys %{$seqHash}) {
 		my @entry = ($seqKey);
+		my @isomirVals = ($seqKey);
 		if ($$seqHash{$seqKey}{'annot'}[0]>0) {
 			my $isomir = $$seqHash{$seqKey}{'annot'}[5];
 			my $mirna = $$seqHash{$seqKey}{'annot'}[1];
@@ -584,18 +609,19 @@ sub writeDataToCSV {
 				$key = $mirna;
 				$key2 = 'mirnas';
 			}
+			if(!(exists $isomirHash{$key})){
+				$isomirHash{$key} = {};
+				$isomirHash{$key}{'mirnas'} = ();
+				$isomirHash{$key}{'isomirs'} = {};
+			}
+			$isomirHash{$key}{$key2}{$seqKey} = ();
 			for ($i=0;$i<6;$i++) {
 				push(@entry, $$seqHash{$seqKey}{'annot'}[$i]);
 			}
 			for ($i=0;$i<scalar(@sampleFiles);$i++) {
 				my $readCount = $$seqHash{$seqKey}{'quant'}[$i] // 0;
 				push(@entry, $readCount);
-				if(exists $isomirHash{$i}{$key}{$key2}){
-					$isomirHash{$i}{$key}{$key2} += $readCount;
-				}
-				else{
-					$isomirHash{$i}{$key}{$key2} = $readCount;
-				}
+				push(@{$isomirHash{$key}{$key2}{$seqKey}}, 1000000*$readCount/$$logHash{'quantStats'}[$i]{'mirnaReadsFiltered'});
 			}
 			push(@entry, "\n");
 			print $fh join(', ', @entry);
@@ -604,44 +630,61 @@ sub writeDataToCSV {
 	close $fh;
 
 	open $fh, ">", $isomirFile;
-	print $fh "uniqueSequence, annotFlag, $$annotNames[0], $$annotNames[1], $$annotNames[2], $$annotNames[3], $$annotNames[4]";
+	my $sh;
+	open $sh, ">", $isomirSampleFile;
+	print $sh "miRNA";
+	print $fh "miRNA, sequence";
 	for ($i=0;$i<scalar(@sampleFiles);$i++) {
 		print $fh ", $sampleFiles[$i]";
+		print $sh ", $sampleFiles[$i] isomir Entropy";
+		print $sh ", $sampleFiles[$i] isomir+miRNA Entropy";
 	}
+	print $fh ", Entropy";
 	print $fh "\n";
-	foreach $seqKey (keys %{$seqHash}) {
-		my $mirna = $$seqHash{$seqKey}{'annot'}[5];
-		if(!$mirna){
-			$mirna = $$seqHash{$seqKey}{'annot'}[1];
-		}
+	print $sh "\n";
+	my $miRNA;
+	my $miRNASeq;
+	foreach $miRNA (keys %{isomirHash}) {
+		my %sampleIsomirs;
+		my $samplemiRNAs = ();
 		for ($i=0;$i<scalar(@sampleFiles);$i++) {
-			my $mirnaCount = $isomirHash{$i}{$mirna}{'mirnas'};
-			my $isomirCount = $isomirHash{$i}{$mirna}{'isomirs'};
-			if(!$mirnaCount){
-				$mirnaCount = 0;
-			}
-			if(!$isomirCount){
-				$isomirCount = 0;
-			}
-			print "$isomirCount, $mirnaCount, $mirna \n";
-			if($isomirCount+$mirnaCount > 0){
-				my $isomirRatio = $isomirCount/($isomirCount+$mirnaCount);
-				if($isomirRatio > $isomirCutoff){
-					my @entry = ($seqKey);
-					for ($i=0;$i<6;$i++) {
-						push(@entry, $$seqHash{$seqKey}{'annot'}[$i]);
-					}
-					for ($i=0;$i<scalar(@sampleFiles);$i++) {
-						push(@entry, $$seqHash{$seqKey}{'quant'}[$i] // 0);
-					}
-					push(@entry, "\n");
-					print $fh join(', ', @entry);
-					last;
-				}
+			$sampleIsomirs{$i} = ();
+			@{$samplemiRNAs}[$i] = 0;
+		}
+		foreach $miRNASeq (keys %{$isomirHash{$miRNA}{'mirnas'}}) {
+			my @entry = ($miRNA);
+			push(@entry, $miRNASeq);
+			my @sampleArray = @{$isomirHash{$miRNA}{'mirnas'}{$miRNASeq}};
+			for ($i=0;$i<scalar(@sampleArray);$i++) {
+				@{$samplemiRNAs}[$i] += $sampleArray[$i];
 			}
 		}
+		foreach $miRNASeq (keys %{$isomirHash{$miRNA}{'isomirs'}}) {
+			my @entry = ($miRNA);
+			push(@entry, $miRNASeq);
+			my @sampleArray = @{$isomirHash{$miRNA}{'isomirs'}{$miRNASeq}};
+			for ($i=0;$i<scalar(@sampleArray);$i++) {
+				push(@{$sampleIsomirs{$i}}, $sampleArray[$i]);
+			}
+			my $entropy = calcEntropy(\@sampleArray);
+			push(@entry, @sampleArray);
+			push(@entry, $entropy);
+			push(@entry, "\n");
+			print $fh join(', ', @entry);
+		}
+		my @withinSampleEntropy = ($miRNA);
+		foreach my $sampleLane (keys %{sampleIsomirs}){
+			my $sampleEntropy = calcEntropy(\@{$sampleIsomirs{$sampleLane}});
+			push(@{$sampleIsomirs{$sampleLane}}, @{$samplemiRNAs}[$sampleLane]);
+			my $sampleEntropyWithmiRNA = calcEntropy(\@{$sampleIsomirs{$sampleLane}});
+			push(@withinSampleEntropy, $sampleEntropy);
+			push(@withinSampleEntropy, $sampleEntropyWithmiRNA);
+		}
+		push(@withinSampleEntropy, "\n");
+		print $sh join(', ', @withinSampleEntropy);
 	}
 	close $fh;
+	close $sh;
 	
 	open $fh, ">", $unmappedFile;
 	print $fh "uniqueSequence, annotFlag, $$annotNames[0], $$annotNames[1], $$annotNames[2], $$annotNames[3], $$annotNames[4]";
@@ -901,13 +944,18 @@ miRge.v1.pl takes the following arguments:
 =item --species human|mouse
 										
 						Specify which reference species should be used. Used to align with 
-						miRge provided references.
+						miRge provided references. If you provide your own reference files as well,
+						this will be the directory they are stored under -- so you only have to 
+						provide them once. We recommend appending a version number or an identifier
+						to keep these unique -- such as 'human_38'.
 						default: human
 
 =item --CPU #
 									
 						Sepcify The number of processors to use for trimming, qc, and alignment.
 						default: 1
+						
+=item --phred64					Input fastq files are in phred64 format.
 
 =back
 
