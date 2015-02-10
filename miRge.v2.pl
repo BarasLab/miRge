@@ -12,11 +12,10 @@ use File::Basename;
 use File::Spec;
 
 
-## Path to programs, by default miRge will use its own copies of the public tools bowtie, cutadapt, and ngsutils within the miRge.seqUtils folder
+## Path to programs, by default miRge will use its own copies of the public tools bowtie and cutadapt within the miRge.seqUtils folder
 my $miRgePath = abs_path($0);
 $miRgePath =~ s/\/[^\/]+\.pl/\//;
 my $cutadaptPath = $miRgePath."miRge.seqUtils/cutadapt-1.7.1/";
-my $ngsutilsPath = $miRgePath."miRge.seqUtils/ngsutils/";
 my $bowtiePath = $miRgePath."miRge.seqUtils/bowtie/";
 my $refPath = $miRgePath."miRge.seqLibs/";
 
@@ -31,7 +30,7 @@ my $phred64 = '';
 
 GetOptions($settings,('help' => \$help,'adapter=s','species=s','CPU=s',
 	'SampleFiles=s','isomirCutoff=s', 'bowtie=s', 'mirna=s', 'hairpin=s',
-	'contaminants=s', 'est=s', 'cutadapt=s', 'ngsutils=s', 'phred64' => \$phred64));
+	'contaminants=s', 'est=s', 'cutadapt=s', 'phred64' => \$phred64));
 
 @sampleFiles = split(',', $$settings{'SampleFiles'});
 my $filterFlag = $$settings{adapter}||"none";
@@ -40,7 +39,6 @@ my $isomirCutoff = $$settings{isomirCutoff}||0.9;
 my $numCPU = $$settings{CPU}||1;
 my $cutAdaptBinary = $$settings{cutadapt}||File::Spec->catdir($cutadaptPath, "cutadapt_forked.sh");
 my $bowtieBinary = $$settings{bowtie}||File::Spec->catdir($bowtiePath, "bowtie");
-my $ngsutilsPath = $$settings{ngsutils}||$ngsutilsPath;
 my $bwtIndexDir = File::Spec->catdir($refPath,$speciesType);
 
 my $mirnaBWT = File::Spec->catdir($bwtIndexDir,"mirna");
@@ -952,10 +950,40 @@ miRge.v1.pl takes the following arguments:
 
 =item --CPU #
 									
-						Sepcify The number of processors to use for trimming, qc, and alignment.
+						Specify The number of processors to use for trimming, qc, and alignment.
 						default: 1
 						
-=item --phred64					Input fastq files are in phred64 format.
+=item --phred64                                 
+
+						Input fastq files are in phred64 format.
+
+=item --bowtie                                  
+
+						The path to your bowtie binary
+
+=back
+
+=item Custom Reference Files: If used, each file type must be provided
+
+=over 4
+
+=item --mirna					
+
+						A fasta file consisting of mature miRNA reference sequences to align against.
+						
+=item --hairpin					
+
+						A fasta file consisting of hairpin miRNA reference sequences to align against.
+						
+=item --contaminants				
+
+						A fasta file consisting of the "contaminant" reference sequences to align against.
+						This file aims to filter out abundant species such as tRNAs or rRNAs.
+						
+=item --est					
+
+						A fasta file consisting of additional background sources of miRNAs.
+
 
 =back
 
