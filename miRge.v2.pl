@@ -33,12 +33,23 @@ GetOptions($settings,('help' => \$help,'adapter=s','species=s','CPU=s',
 	'contaminants=s', 'est=s', 'cutadapt=s', 'phred64' => \$phred64));
 
 @sampleFiles = split(',', $$settings{'SampleFiles'});
+#FIXME FOR ADAPTER
 my $filterFlag = $$settings{adapter}||"none";
+my $ion = 0;
+if($filterFlag == 'illumina'){
+	$filterFlag = 'TGGAATTCTCGGGTGCCAAGGAACTCCAG';
+}
+elsif($filterFlag == 'ion'){
+	$filterFlag = '+11';
+	$ion = 1;
+}
+
 my $speciesType = $$settings{species}||0;
 my $isomirCutoff = $$settings{isomirCutoff}||0.9;
 my $numCPU = $$settings{CPU}||1;
-my $cutAdaptBinary = $$settings{cutadapt}||File::Spec->catdir($cutadaptPath, "cutadapt_forked.sh");
-my $bowtieBinary = $$settings{bowtie}||File::Spec->catdir($bowtiePath, "bowtie");
+#FIXME -- search environment
+my $cutAdaptBinary = $$settings{cutadapt}||"cutadapt";
+my $bowtieBinary = $$settings{bowtie}||"bowtie";
 my $bwtIndexDir = File::Spec->catdir($refPath,$speciesType);
 
 my $mirnaBWT = File::Spec->catdir($bwtIndexDir,"mirna");
@@ -94,11 +105,8 @@ print "Completed ($t sec)\n";
 ############################# sub-routines #################################
 sub calcEntropy{
 	my $arrRef = shift;
-	my $sum = 0;
 	my @arr = @{$arrRef};
-	for(my $i=0;$i<scalar(@arr);$i++){
-		$sum = $sum + $arr[$i];
-	}
+	my $sum = sumArray(\@arr);
 	my $entropy = 0;
 	for (my $i=0;$i<scalar(@arr);$i++){
 		if($arr[$i] > 0){
@@ -107,6 +115,16 @@ sub calcEntropy{
 		}
 	}
 	return $entropy;
+}
+
+sub sumArray{
+	my $arrRef = shift;
+	my $sum = 0;
+	my @arr = @{$arrRef};
+	for(my $i=0;$i<scalar(@arr);$i++){
+		$sum = $sum + $arr[$i];
+	}
+	return $sum;
 }
 
 sub getTimeDelta{
@@ -154,17 +172,17 @@ sub checkBowtieIndex {
 }
 
 sub checkBowtie {
-	my $bowtieIndex;
-	if(-e $bowtieBinary){
-		my($filename, $dirs, $suffix) = fileparse($bowtieBinary);
-		$bowtieIndex = File::Spec->catdir($dirs, "bowtie-build");
-		if(!(-e $bowtieIndex)){
-			die "Bowtie-build cannot be found at $bowtieIndex";
-		}
-	}
-	else{
-		die "Bowtie cannot be found at $bowtieBinary";
-	}
+	my $bowtieIndex = "bowtie-build";
+	# if(-e $bowtieBinary){
+		# my($filename, $dirs, $suffix) = fileparse($bowtieBinary);
+		# $bowtieIndex = File::Spec->catdir($dirs, "bowtie-build");
+		# if(!(-e $bowtieIndex)){
+			# die "Bowtie-build cannot be found at $bowtieIndex";
+		# }
+	# }
+	# else{
+		# die "Bowtie cannot be found at $bowtieBinary";
+	# }
 	$mirnaBWT = checkBowtieIndex($mirnaBWT, $bowtieIndex, 'mirna');
 	$hairpinBWT = checkBowtieIndex($hairpinBWT, $bowtieIndex, 'hairpin');
 	$contBWT = checkBowtieIndex($contBWT, $bowtieIndex, 'contaminants');
@@ -203,10 +221,11 @@ sub trimRaw {
 	
 	$$logHash{'quantStats'}[$sampleIndex]{'cpuTime-trim'} = time;
 	if($phred64){
-		system("python trim_file.py --cutadapt=$cutAdaptBinary --threads=$numCPU --infile=$infile --outfile=$outfile --phred64" );
+		#FIXME, flags as list with --ion being toggle
+		system("python trim_file.py --ion=$ion --adapter=$filterFlag --cutadapt=$cutAdaptBinary --threads=$numCPU --infile=$infile --outfile=$outfile --phred64" );
 	}
 	else{
-		system("python trim_file.py --cutadapt=$cutAdaptBinary --threads=$numCPU --infile=$infile --outfile=$outfile" );
+		system("python trim_file.py --adapter=$filterFlag --cutadapt=$cutAdaptBinary --threads=$numCPU --infile=$infile --outfile=$outfile" );
 	}
 	$$logHash{'quantStats'}[$sampleIndex]{'cpuTime-trim'} = time - $$logHash{'quantStats'}[$sampleIndex]{'cpuTime-trim'};
 	
@@ -283,7 +302,7 @@ sub runAnnotationPipeline {
 		$alignmentStatus = system($$bwtCmdLines[$i]);
 		$$logHash{'annotStats'}[$i+1]{'cpuTime'} = time - $$logHash{'annotStats'}[$i+1]{'cpuTime'}; # in seconds
 		$alignmentStatus = $alignmentStatus >> 8;
-		print "cpuTime:$$logHash{'annotStats'}[$i+1]{'cpuTime'}\n";
+		print sprintf("cpuTime: %.2f\n", $$logHash{'annotStats'}[$i+1]{'cpuTime'});
 
 		# parse alignment completed without error
 		if ($alignmentStatus==0) {
@@ -638,8 +657,9 @@ sub writeDataToCSV {
 	print $fh "miRNA, sequence";
 	for ($i=0;$i<scalar(@sampleFiles);$i++) {
 		print $fh ", $sampleFiles[$i]";
-		print $sh ", $sampleFiles[$i] isomir Entropy";
 		print $sh ", $sampleFiles[$i] isomir+miRNA Entropy";
+		print $sh ", $sampleFiles[$i] % Canonical Sequence";
+		print $sh ", $sampleFiles[$i] Canonical RPM";
 	}
 	print $fh ", Entropy";
 	print $fh "\n";
@@ -674,16 +694,23 @@ sub writeDataToCSV {
 			push(@entry, "\n");
 			print $fh join(', ', @entry);
 		}
-		my @withinSampleEntropy = ($miRNA);
+		my @isomirOut = ($miRNA);
 		foreach my $sampleLane (keys %{sampleIsomirs}){
 			my $sampleEntropy = calcEntropy(\@{$sampleIsomirs{$sampleLane}});
+			my $isomirSum = sumArray(\@{$sampleIsomirs{$sampleLane}});
 			push(@{$sampleIsomirs{$sampleLane}}, @{$samplemiRNAs}[$sampleLane]);
 			my $sampleEntropyWithmiRNA = calcEntropy(\@{$sampleIsomirs{$sampleLane}});
-			push(@withinSampleEntropy, $sampleEntropy);
-			push(@withinSampleEntropy, $sampleEntropyWithmiRNA);
+			my $miRNASum = $$samplemiRNAs[$sampleLane];
+			# push(@withinSampleEntropy, $sampleEntropy);
+			push(@isomirOut, $sampleEntropyWithmiRNA);
+			push(@isomirOut, $miRNASum);
+			my $combined = $miRNASum + $isomirSum;
+			if($combined > 0){
+				push(@isomirOut, 100*$miRNASum / $combined);
+			}
 		}
-		push(@withinSampleEntropy, "\n");
-		print $sh join(', ', @withinSampleEntropy);
+		push(@isomirOut, "\n");
+		print $sh join(', ', @isomirOut);
 	}
 	close $fh;
 	close $sh;
@@ -936,7 +963,7 @@ miRge.v1.pl takes the following arguments:
 
 						Displays the usage message.
 
-=item --cutadapt none|illumina|ion
+=item --adapter illumina|ion|custom sequence
 
 						Run adapter removal and quality filtering via cutadapt.
 						default: none
@@ -964,6 +991,10 @@ miRge.v1.pl takes the following arguments:
 =item --bowtie                                  
 
 						The path to your bowtie binary
+						
+=item --cutadapt                                  
+
+						The path to cutadapt
 
 =back
 
