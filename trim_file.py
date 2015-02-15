@@ -65,7 +65,7 @@ class FastqIterator(GenericIterator):
 
 
 class Worker(Process):
-    def __init__(self, queue=None, cutadapt=None, adapter='TGGAATTCTCGGGTGCCAAGGAACTCCAG', phred64=False):
+    def __init__(self, queue=None, cutadapt=None, adapter=None, phred64=False):
         super(Worker, self).__init__()
         self.queue=queue
         self.phred64 = False
@@ -84,6 +84,7 @@ class Worker(Process):
 
 parser = argparse.ArgumentParser()
 parser.add_argument('--cutadapt', type=str)
+parser.add_argument('--adapter', type=str)
 parser.add_argument('--infile', type=argparse.FileType('rb'))
 parser.add_argument('--outfile', type=argparse.FileType('wb'))
 parser.add_argument('--threads', type=int, default=1)
@@ -100,12 +101,13 @@ def main():
         gzipped = True
         outfile, outext = os.path.splitext(outfile)
     chunksize = 1000000
+    adapter = 'TGGAATTCTCGGGTGCCAAGGAACTCCAG' if not args.adapter else args.adapter
     # make the new files, since we don't know its size from the beginning and it'd be wasteful
     # to read it twice, split it to a million reads per file and process as such
     read_queue = Queue()
     workers = []
     for i in xrange(args.threads):
-        worker = Worker(queue=read_queue, cutadapt=args.cutadapt, phred64=phred)
+        worker = Worker(queue=read_queue, cutadapt=args.cutadapt, phred64=phred, adapter=adapter)
         workers.append(worker)
         worker.start()
 
@@ -150,6 +152,8 @@ def main():
     # delete temp files
     for filename in files+tmpfiles:
         os.remove(filename)
+
+    return phred
 
     return phred
 

@@ -12,11 +12,10 @@ use File::Basename;
 use File::Spec;
 
 
-## Path to programs, by default miRge will use its own copies of the public tools bowtie, cutadapt, and ngsutils within the miRge.seqUtils folder
+## Path to programs, by default miRge will use its own copies of the public tools bowtie and cutadapt within the miRge.seqUtils folder
 my $miRgePath = abs_path($0);
 $miRgePath =~ s/\/[^\/]+\.pl/\//;
 my $cutadaptPath = $miRgePath."miRge.seqUtils/cutadapt-1.7.1/";
-my $ngsutilsPath = $miRgePath."miRge.seqUtils/ngsutils/";
 my $bowtiePath = $miRgePath."miRge.seqUtils/bowtie/";
 my $refPath = $miRgePath."miRge.seqLibs/";
 
@@ -31,16 +30,26 @@ my $phred64 = '';
 
 GetOptions($settings,('help' => \$help,'adapter=s','species=s','CPU=s',
 	'SampleFiles=s','isomirCutoff=s', 'bowtie=s', 'mirna=s', 'hairpin=s',
-	'contaminants=s', 'est=s', 'cutadapt=s', 'ngsutils=s', 'phred64' => \$phred64));
+	'contaminants=s', 'est=s', 'cutadapt=s', 'phred64' => \$phred64));
 
 @sampleFiles = split(',', $$settings{'SampleFiles'});
+#FIXME FOR ADAPTER
 my $filterFlag = $$settings{adapter}||"none";
+my $ion = 0;
+if($filterFlag == 'illumina'){
+	$filterFlag = 'TGGAATTCTCGGGTGCCAAGGAACTCCAG';
+}
+elsif($filterFlag == 'ion'){
+	$filterFlag = '+11';
+	$ion = 1;
+}
+
 my $speciesType = $$settings{species}||0;
 my $isomirCutoff = $$settings{isomirCutoff}||0.9;
 my $numCPU = $$settings{CPU}||1;
-my $cutAdaptBinary = $$settings{cutadapt}||File::Spec->catdir($cutadaptPath, "cutadapt_forked.sh");
-my $bowtieBinary = $$settings{bowtie}||File::Spec->catdir($bowtiePath, "bowtie");
-my $ngsutilsPath = $$settings{ngsutils}||$ngsutilsPath;
+#FIXME -- search environment
+my $cutAdaptBinary = $$settings{cutadapt}||"cutadapt";
+my $bowtieBinary = $$settings{bowtie}||"bowtie";
 my $bwtIndexDir = File::Spec->catdir($refPath,$speciesType);
 
 my $mirnaBWT = File::Spec->catdir($bwtIndexDir,"mirna");
@@ -95,16 +104,27 @@ print "Completed ($t sec)\n";
 
 ############################# sub-routines #################################
 sub calcEntropy{
-	my @array = $_[0];
-	my $sum = sumArray(@array);
+	my $arrRef = shift;
+	my @arr = @{$arrRef};
+	my $sum = sumArray(\@arr);
 	my $entropy = 0;
-	my $i;
-	my $freq;
-	for ($i=0;$i<scalar(@array);$i++){
-		$freq = $array[$i]/$sum;
-		$entropy += -1*$freq*log($freq)/log(2);
+	for (my $i=0;$i<scalar(@arr);$i++){
+		if($arr[$i] > 0){
+			my $freq = $arr[$i]/$sum;
+			$entropy = $entropy + -1*$freq*log($freq)/log(2);
+		}
 	}
 	return $entropy;
+}
+
+sub sumArray{
+	my $arrRef = shift;
+	my $sum = 0;
+	my @arr = @{$arrRef};
+	for(my $i=0;$i<scalar(@arr);$i++){
+		$sum = $sum + $arr[$i];
+	}
+	return $sum;
 }
 
 sub getTimeDelta{
@@ -138,6 +158,10 @@ sub checkBowtieIndex {
 			return $file;
 		}
 		system("$builder $path $file");
+		my $bowtieMap = File::Spec->catdir($bwtIndexDir, "index.map");
+		my $bm;
+		open $bm, ">>", $bowtieMap;
+		print $bm "$path $file \n";
 		if(-e $file){
 			die "Error building $file.";
 		}
@@ -148,17 +172,17 @@ sub checkBowtieIndex {
 }
 
 sub checkBowtie {
-	my $bowtieIndex;
-	if(-e $bowtieBinary){
-		my($filename, $dirs, $suffix) = fileparse($bowtieBinary);
-		$bowtieIndex = File::Spec->catdir($dirs, "bowtie-build");
-		if(!(-e $bowtieIndex)){
-			die "Bowtie-build cannot be found at $bowtieIndex";
-		}
-	}
-	else{
-		die "Bowtie cannot be found at $bowtieBinary";
-	}
+	my $bowtieIndex = "bowtie-build";
+	# if(-e $bowtieBinary){
+		# my($filename, $dirs, $suffix) = fileparse($bowtieBinary);
+		# $bowtieIndex = File::Spec->catdir($dirs, "bowtie-build");
+		# if(!(-e $bowtieIndex)){
+			# die "Bowtie-build cannot be found at $bowtieIndex";
+		# }
+	# }
+	# else{
+		# die "Bowtie cannot be found at $bowtieBinary";
+	# }
 	$mirnaBWT = checkBowtieIndex($mirnaBWT, $bowtieIndex, 'mirna');
 	$hairpinBWT = checkBowtieIndex($hairpinBWT, $bowtieIndex, 'hairpin');
 	$contBWT = checkBowtieIndex($contBWT, $bowtieIndex, 'contaminants');
@@ -197,10 +221,11 @@ sub trimRaw {
 	
 	$$logHash{'quantStats'}[$sampleIndex]{'cpuTime-trim'} = time;
 	if($phred64){
-		system("python trim_file.py --cutadapt=$cutAdaptBinary --threads=$numCPU --infile=$infile --outfile=$outfile --phred64" );
+		#FIXME, flags as list with --ion being toggle
+		system("python trim_file.py --ion=$ion --adapter=$filterFlag --cutadapt=$cutAdaptBinary --threads=$numCPU --infile=$infile --outfile=$outfile --phred64" );
 	}
 	else{
-		system("python trim_file.py --cutadapt=$cutAdaptBinary --threads=$numCPU --infile=$infile --outfile=$outfile" );
+		system("python trim_file.py --adapter=$filterFlag --cutadapt=$cutAdaptBinary --threads=$numCPU --infile=$infile --outfile=$outfile" );
 	}
 	$$logHash{'quantStats'}[$sampleIndex]{'cpuTime-trim'} = time - $$logHash{'quantStats'}[$sampleIndex]{'cpuTime-trim'};
 	
@@ -277,7 +302,7 @@ sub runAnnotationPipeline {
 		$alignmentStatus = system($$bwtCmdLines[$i]);
 		$$logHash{'annotStats'}[$i+1]{'cpuTime'} = time - $$logHash{'annotStats'}[$i+1]{'cpuTime'}; # in seconds
 		$alignmentStatus = $alignmentStatus >> 8;
-		print "cpuTime:$$logHash{'annotStats'}[$i+1]{'cpuTime'}\n";
+		print sprintf("cpuTime: %.2f\n", $$logHash{'annotStats'}[$i+1]{'cpuTime'});
 
 		# parse alignment completed without error
 		if ($alignmentStatus==0) {
@@ -564,19 +589,11 @@ sub writeHtmlReport {
 	close $fh;
 }
 
-sub sumArray {
-	my @array = $_[0];
-	my $arraySum = 0;
-	my $i;
-	for ($i=0;$i<scalar(@array);$i++){
-		$arraySum += $array[$i];
-	}
-	return $arraySum;
-}
 
 sub writeDataToCSV {
 	my $mappedFile = "miRge.$tStamp.mapped.csv";
 	my $isomirFile = "miRge.$tStamp.isomirs.csv";
+	my $isomirSampleFile = "miRge.$tStamp.isomirs.samples.csv";
 	my $unmappedFile = "miRge.$tStamp.unmapped.csv";
 	my $mirRPMFile = "miRge.$tStamp.miR.RPM.csv";
 	my $mirCountsFile = "miRge.$tStamp.miR.Counts.csv";
@@ -592,13 +609,14 @@ sub writeDataToCSV {
 	}
 	print $fh "\n";
 	# a hash to compare isomirs to their parent mirnas across samples
-	my %isomirHash;
-	for ($i=0;$i<scalar(@sampleFiles);$i++) {
-		$isomirHash{$i}{'isomirs'} = {};
-		$isomirHash{$i}{'mirnas'} = {};
-	}
+	# The hash is structured as such:
+	# {mirna: {"isomir": {sequence1: [sample 1, .., sample n], sequence2: ...},
+	#	   "mirna":  {sequence1: [sample 1, .., sample n], sequence2: ... }}}
+	# 
+	my %isomirHash = {};
 	foreach $seqKey (keys %{$seqHash}) {
 		my @entry = ($seqKey);
+		my @isomirVals = ($seqKey);
 		if ($$seqHash{$seqKey}{'annot'}[0]>0) {
 			my $isomir = $$seqHash{$seqKey}{'annot'}[5];
 			my $mirna = $$seqHash{$seqKey}{'annot'}[1];
@@ -612,18 +630,19 @@ sub writeDataToCSV {
 				$key = $mirna;
 				$key2 = 'mirnas';
 			}
+			if(!(exists $isomirHash{$key})){
+				$isomirHash{$key} = {};
+				$isomirHash{$key}{'mirnas'} = ();
+				$isomirHash{$key}{'isomirs'} = {};
+			}
+			$isomirHash{$key}{$key2}{$seqKey} = ();
 			for ($i=0;$i<6;$i++) {
 				push(@entry, $$seqHash{$seqKey}{'annot'}[$i]);
 			}
 			for ($i=0;$i<scalar(@sampleFiles);$i++) {
 				my $readCount = $$seqHash{$seqKey}{'quant'}[$i] // 0;
 				push(@entry, $readCount);
-				if(exists $isomirHash{$i}{$key}{$key2}){
-					$isomirHash{$i}{$key}{$key2} += $readCount;
-				}
-				else{
-					$isomirHash{$i}{$key}{$key2} = $readCount;
-				}
+				push(@{$isomirHash{$key}{$key2}{$seqKey}}, 1000000*$readCount/$$logHash{'quantStats'}[$i]{'mirnaReadsFiltered'});
 			}
 			push(@entry, "\n");
 			print $fh join(', ', @entry);
@@ -632,44 +651,69 @@ sub writeDataToCSV {
 	close $fh;
 
 	open $fh, ">", $isomirFile;
-	print $fh "uniqueSequence, annotFlag, $$annotNames[0], $$annotNames[1], $$annotNames[2], $$annotNames[3], $$annotNames[4]";
+	my $sh;
+	open $sh, ">", $isomirSampleFile;
+	print $sh "miRNA";
+	print $fh "miRNA, sequence";
 	for ($i=0;$i<scalar(@sampleFiles);$i++) {
 		print $fh ", $sampleFiles[$i]";
+		print $sh ", $sampleFiles[$i] isomir+miRNA Entropy";
+		print $sh ", $sampleFiles[$i] % Canonical Sequence";
+		print $sh ", $sampleFiles[$i] Canonical RPM";
 	}
+	print $fh ", Entropy";
 	print $fh "\n";
-	foreach $seqKey (keys %{$seqHash}) {
-		my $mirna = $$seqHash{$seqKey}{'annot'}[5];
-		if(!$mirna){
-			$mirna = $$seqHash{$seqKey}{'annot'}[1];
-		}
+	print $sh "\n";
+	my $miRNA;
+	my $miRNASeq;
+	foreach $miRNA (keys %{isomirHash}) {
+		my %sampleIsomirs;
+		my $samplemiRNAs = ();
 		for ($i=0;$i<scalar(@sampleFiles);$i++) {
-			my $mirnaCount = $isomirHash{$i}{$mirna}{'mirnas'};
-			my $isomirCount = $isomirHash{$i}{$mirna}{'isomirs'};
-			if(!$mirnaCount){
-				$mirnaCount = 0;
-			}
-			if(!$isomirCount){
-				$isomirCount = 0;
-			}
-			print "$isomirCount, $mirnaCount, $mirna \n";
-			if($isomirCount+$mirnaCount > 0){
-				my $isomirRatio = $isomirCount/($isomirCount+$mirnaCount);
-				if($isomirRatio > $isomirCutoff){
-					my @entry = ($seqKey);
-					for ($i=0;$i<6;$i++) {
-						push(@entry, $$seqHash{$seqKey}{'annot'}[$i]);
-					}
-					for ($i=0;$i<scalar(@sampleFiles);$i++) {
-						push(@entry, $$seqHash{$seqKey}{'quant'}[$i] // 0);
-					}
-					push(@entry, "\n");
-					print $fh join(', ', @entry);
-					last;
-				}
+			$sampleIsomirs{$i} = ();
+			@{$samplemiRNAs}[$i] = 0;
+		}
+		foreach $miRNASeq (keys %{$isomirHash{$miRNA}{'mirnas'}}) {
+			my @entry = ($miRNA);
+			push(@entry, $miRNASeq);
+			my @sampleArray = @{$isomirHash{$miRNA}{'mirnas'}{$miRNASeq}};
+			for ($i=0;$i<scalar(@sampleArray);$i++) {
+				@{$samplemiRNAs}[$i] += $sampleArray[$i];
 			}
 		}
+		foreach $miRNASeq (keys %{$isomirHash{$miRNA}{'isomirs'}}) {
+			my @entry = ($miRNA);
+			push(@entry, $miRNASeq);
+			my @sampleArray = @{$isomirHash{$miRNA}{'isomirs'}{$miRNASeq}};
+			for ($i=0;$i<scalar(@sampleArray);$i++) {
+				push(@{$sampleIsomirs{$i}}, $sampleArray[$i]);
+			}
+			my $entropy = calcEntropy(\@sampleArray);
+			push(@entry, @sampleArray);
+			push(@entry, $entropy);
+			push(@entry, "\n");
+			print $fh join(', ', @entry);
+		}
+		my @isomirOut = ($miRNA);
+		foreach my $sampleLane (keys %{sampleIsomirs}){
+			my $sampleEntropy = calcEntropy(\@{$sampleIsomirs{$sampleLane}});
+			my $isomirSum = sumArray(\@{$sampleIsomirs{$sampleLane}});
+			push(@{$sampleIsomirs{$sampleLane}}, @{$samplemiRNAs}[$sampleLane]);
+			my $sampleEntropyWithmiRNA = calcEntropy(\@{$sampleIsomirs{$sampleLane}});
+			my $miRNASum = $$samplemiRNAs[$sampleLane];
+			# push(@withinSampleEntropy, $sampleEntropy);
+			push(@isomirOut, $sampleEntropyWithmiRNA);
+			push(@isomirOut, $miRNASum);
+			my $combined = $miRNASum + $isomirSum;
+			if($combined > 0){
+				push(@isomirOut, 100*$miRNASum / $combined);
+			}
+		}
+		push(@isomirOut, "\n");
+		print $sh join(', ', @isomirOut);
 	}
 	close $fh;
+	close $sh;
 	
 	open $fh, ">", $unmappedFile;
 	print $fh "uniqueSequence, annotFlag, $$annotNames[0], $$annotNames[1], $$annotNames[2], $$annotNames[3], $$annotNames[4]";
@@ -919,7 +963,7 @@ miRge.v1.pl takes the following arguments:
 
 						Displays the usage message.
 
-=item --cutadapt none|illumina|ion
+=item --adapter illumina|ion|custom sequence
 
 						Run adapter removal and quality filtering via cutadapt.
 						default: none
@@ -937,10 +981,44 @@ miRge.v1.pl takes the following arguments:
 
 =item --CPU #
 									
-						Sepcify The number of processors to use for trimming, qc, and alignment.
+						Specify The number of processors to use for trimming, qc, and alignment.
 						default: 1
 						
-=item --phred64					Input fastq files are in phred64 format.
+=item --phred64                                 
+
+						Input fastq files are in phred64 format.
+
+=item --bowtie                                  
+
+						The path to your bowtie binary
+						
+=item --cutadapt                                  
+
+						The path to cutadapt
+
+=back
+
+=item Custom Reference Files: If used, each file type must be provided
+
+=over 4
+
+=item --mirna					
+
+						A fasta file consisting of mature miRNA reference sequences to align against.
+						
+=item --hairpin					
+
+						A fasta file consisting of hairpin miRNA reference sequences to align against.
+						
+=item --contaminants				
+
+						A fasta file consisting of the "contaminant" reference sequences to align against.
+						This file aims to filter out abundant species such as tRNAs or rRNAs.
+						
+=item --est					
+
+						A fasta file consisting of additional background sources of miRNAs.
+
 
 =back
 
