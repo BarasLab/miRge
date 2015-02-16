@@ -14,7 +14,7 @@ use File::Spec;
 
 ## Path to programs, by default miRge will use its own copies of the public tools bowtie and cutadapt within the miRge.seqUtils folder
 my $miRgePath = abs_path($0);
-local $ENV{PATH} = "$ENV{PATH}:"$miRgePath."miRge.seqUtils/";
+local $ENV{PATH} = "$ENV{PATH}:".$miRgePath."miRge.seqUtils/";
 $miRgePath =~ s/\/[^\/]+\.pl/\//;
 my $refPath = $miRgePath."miRge.seqLibs/";
 
@@ -68,6 +68,7 @@ pod2usage( -verbose => 1) if( $help );
 pod2usage( -verbose => 1) if( @sampleFiles<1 );
 pod2usage( -verbose => 1) if( $numCPU =~ m/\D/ );
 
+my $mirge_start_time = time;
 print "\nChecking for bowtie and indices ...\n";
 $t = time;
 checkBowtie();
@@ -95,7 +96,9 @@ filter();
 writeHtmlReport();
 writeDataToCSV();
 $t = getTimeDelta($t,time);
-print "Completed ($t sec)\n";
+print "Summary Complete ($t sec)\n";
+$t = getTimeDelta($mirge_start_time,time);
+print "miRge Completed ($t sec)\n";
 
 ############################# sub-routines #################################
 sub calcEntropy{
@@ -220,7 +223,7 @@ sub trimRaw {
 		$command = $command." --phred64";
 	}
 	system("python trim_file.py $command");
-	$$logHash{'quantStats'}[$sampleIndex]{'cpuTime-trim'} = time - $$logHash{'quantStats'}[$sampleIndex]{'cpuTime-trim'};
+	$$logHash{'quantStats'}[$sampleIndex]{'cpuTime-trim'} = getTimeDelta($$logHash{'quantStats'}[$sampleIndex]{'cpuTime-trim'}, time);
 	
 	open $fh, "<", "$infile.log";
 	$fileText = join('',<$fh>);
@@ -259,7 +262,7 @@ sub quantReads {
 		$$readLengthHash{$$seqHash{$seqKey}{'length'}}[$sampleIndex] += $$seqHash{$seqKey}{'quant'}[$sampleIndex];
 	}
 
-	$$logHash{'quantStats'}[$sampleIndex]{'cpuTime-uniq'} = time - $$logHash{'quantStats'}[$sampleIndex]{'cpuTime-uniq'};
+	$$logHash{'quantStats'}[$sampleIndex]{'cpuTime-uniq'} = getTimeDelta($$logHash{'quantStats'}[$sampleIndex]{'cpuTime-uniq'}, time);
 }
 
 sub runAnnotationPipeline {
