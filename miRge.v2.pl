@@ -445,28 +445,25 @@ sub miRNAmerge {
 	my $i;
 	my $j;
 	
-	if ($speciesType) {
-		$mergeFile = $speciesType.'_merges.csv';
-	}
-	else {
-		$mergeFile = 'miRNA_merges.csv';
-	}
+	my $mergeFile = File::Spec->catfile(File::Spec->catdir($refPath, $speciesType), 'merges.csv');
 	
-	open $fh, "<", $refPath.$mergeFile;
-	while ($line = <$fh>) {
-		chomp($line);
-		$line = [split(',',$line)];
-		for ($i=1; $i<scalar(@{$line}); $i++) {
-			for ($j=0; $j<scalar(@sampleFiles); $j++) {
-				if ($$mirHash{$$line[$i]}{'quant'}[$j]>0) {
-					$$mirHash{$$line[0]}{'quant'}[$j] += $$mirHash{$$line[$i]}{'quant'}[$j];
-					$$mirHash{$$line[0]}{'iscan'}[$j] += $$mirHash{$$line[$i]}{'iscan'}[$j];
+	if(-e $mergeFile){
+		open $fh, "<", $mergeFile;
+		while ($line = <$fh>) {
+			chomp($line);
+			$line = [split(',',$line)];
+			for ($i=1; $i<scalar(@{$line}); $i++) {
+				for ($j=0; $j<scalar(@sampleFiles); $j++) {
+					if ($$mirHash{$$line[$i]}{'quant'}[$j]>0) {
+						$$mirHash{$$line[0]}{'quant'}[$j] += $$mirHash{$$line[$i]}{'quant'}[$j];
+						$$mirHash{$$line[0]}{'iscan'}[$j] += $$mirHash{$$line[$i]}{'iscan'}[$j];
+					}
 				}
+				delete($$mirHash{$$line[$i]});
 			}
-			delete($$mirHash{$$line[$i]});
 		}
+		close $fh;
 	}
-	close $fh;
 }
 
 sub filter {
