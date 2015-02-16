@@ -70,12 +70,15 @@ class Worker(Process):
         self.queue=queue
         self.phred64 = False
         self.cutadapt = cutadapt
+        self.adapter_flag = '-a'
+        if adapter.startswith('+'):
+            self.adapter_flag = '-u'
         self.adapter = adapter
 
     def run(self):
         for filename in iter(self.queue.get, None):
             outfile, outext = os.path.splitext(filename)
-            p = subprocess.Popen([self.cutadapt, '-q', '10', '-m', '16', '-a',
+            p = subprocess.Popen([self.cutadapt, '-q', '10', '-m', '16', self.adapter_flag,
                                   self.adapter, '-e', '0.12', '--quality-base',
                                   '64' if self.phred64 else '33', '--quiet',
                                   '--discard-untrimmed',

@@ -14,9 +14,8 @@ use File::Spec;
 
 ## Path to programs, by default miRge will use its own copies of the public tools bowtie and cutadapt within the miRge.seqUtils folder
 my $miRgePath = abs_path($0);
+local $ENV{PATH} = "$ENV{PATH}:"$miRgePath."miRge.seqUtils/";
 $miRgePath =~ s/\/[^\/]+\.pl/\//;
-my $cutadaptPath = $miRgePath."miRge.seqUtils/cutadapt-1.7.1/";
-my $bowtiePath = $miRgePath."miRge.seqUtils/bowtie/";
 my $refPath = $miRgePath."miRge.seqLibs/";
 
 if(not -d $refPath){
@@ -30,31 +29,27 @@ my $phred64 = '';
 
 GetOptions($settings,('help' => \$help,'adapter=s','species=s','CPU=s',
 	'SampleFiles=s','isomirCutoff=s', 'bowtie=s', 'mirna=s', 'hairpin=s',
-	'contaminants=s', 'est=s', 'cutadapt=s', 'phred64' => \$phred64));
+	'other=s', 'est=s', 'cutadapt=s', 'phred64' => \$phred64));
 
 @sampleFiles = split(',', $$settings{'SampleFiles'});
-#FIXME FOR ADAPTER
-my $filterFlag = $$settings{adapter}||"none";
-my $ion = 0;
-if($filterFlag == 'illumina'){
-	$filterFlag = 'TGGAATTCTCGGGTGCCAAGGAACTCCAG';
+my $adapter = $$settings{adapter}||"none";
+if($adapter == 'illumina'){
+	$adapter = 'TGGAATTCTCGGGTGCCAAGGAACTCCAG';
 }
-elsif($filterFlag == 'ion'){
-	$filterFlag = '+11';
-	$ion = 1;
+elsif($adapter == 'ion'){
+	$adapter = '+11';
 }
 
 my $speciesType = $$settings{species}||0;
 my $isomirCutoff = $$settings{isomirCutoff}||0.9;
 my $numCPU = $$settings{CPU}||1;
-#FIXME -- search environment
 my $cutAdaptBinary = $$settings{cutadapt}||"cutadapt";
 my $bowtieBinary = $$settings{bowtie}||"bowtie";
 my $bwtIndexDir = File::Spec->catdir($refPath,$speciesType);
 
 my $mirnaBWT = File::Spec->catdir($bwtIndexDir,"mirna");
 my $hairpinBWT = File::Spec->catdir($bwtIndexDir,"hairpin");
-my $contBWT = File::Spec->catdir($bwtIndexDir,"contaminants");
+my $contBWT = File::Spec->catdir($bwtIndexDir,"other");
 my $estBWT = File::Spec->catdir($bwtIndexDir,"est");
 
 
@@ -185,7 +180,7 @@ sub checkBowtie {
 	# }
 	$mirnaBWT = checkBowtieIndex($mirnaBWT, $bowtieIndex, 'mirna');
 	$hairpinBWT = checkBowtieIndex($hairpinBWT, $bowtieIndex, 'hairpin');
-	$contBWT = checkBowtieIndex($contBWT, $bowtieIndex, 'contaminants');
+	$contBWT = checkBowtieIndex($contBWT, $bowtieIndex, 'other');
 	$estBWT = checkBowtieIndex($estBWT, $bowtieIndex, 'est');
 }
 
@@ -220,13 +215,11 @@ sub trimRaw {
 	my $fh;
 	
 	$$logHash{'quantStats'}[$sampleIndex]{'cpuTime-trim'} = time;
+	my $command = "--adapter=$adapter --cutadapt=$cutAdaptBinary --threads=$numCPU --infile=$infile --outfile=$outfile";
 	if($phred64){
-		#FIXME, flags as list with --ion being toggle
-		system("python trim_file.py --ion=$ion --adapter=$filterFlag --cutadapt=$cutAdaptBinary --threads=$numCPU --infile=$infile --outfile=$outfile --phred64" );
+		$command = $command." --phred64";
 	}
-	else{
-		system("python trim_file.py --adapter=$filterFlag --cutadapt=$cutAdaptBinary --threads=$numCPU --infile=$infile --outfile=$outfile" );
-	}
+	system("python trim_file.py $command");
 	$$logHash{'quantStats'}[$sampleIndex]{'cpuTime-trim'} = time - $$logHash{'quantStats'}[$sampleIndex]{'cpuTime-trim'};
 	
 	open $fh, "<", "$infile.log";
@@ -1010,10 +1003,10 @@ miRge.v1.pl takes the following arguments:
 
 						A fasta file consisting of hairpin miRNA reference sequences to align against.
 						
-=item --contaminants				
+=item --other				
 
-						A fasta file consisting of the "contaminant" reference sequences to align against.
-						This file aims to filter out abundant species such as tRNAs or rRNAs.
+						A fasta file consisting of the additional reference sequences to align against.
+						This file aims to identify additional sources of small reads such as tRNAs or rRNAs.
 						
 =item --est					
 
