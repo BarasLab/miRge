@@ -98,13 +98,28 @@ def main():
     source = FastqIterator(args.infile)
     dest = args.outfile
     outfile, outext = os.path.splitext(args.infile.name)
-    phred = args.phred64
+    phred = args.phred64 or 33
     gzipped = False
     if outext == '.gz':
         gzipped = True
+        logfile = outfile
         outfile, outext = os.path.splitext(outfile)
+    else:
+        logfile = args.infile.name
     chunksize = 1000000
-    adapter = 'TGGAATTCTCGGGTGCCAAGGAACTCCAG' if not args.adapter else args.adapter
+    adapter = args.adapter
+    if adapter == "none":
+        # just figure out and return the phred
+        for index, reads in enumerate(source):
+            if index < 1000 and phred == 33:
+                if any([i for i in reads[3] if ord(i) > 74]):
+                    phred = 64
+        with open('{0}.log'.format(logfile), 'wb') as o:
+            o.write('Starting reads: {0}\n'.format(index+1))
+            o.write('Processed reads: {0}\n'.format(index+1))
+        sys.stdout.write('{0}\n'.format(phred))
+        return phred
+
     # make the new files, since we don't know its size from the beginning and it'd be wasteful
     # to read it twice, split it to a million reads per file and process as such
     read_queue = Queue()
@@ -130,9 +145,11 @@ def main():
             fbase, fext = os.path.splitext(filename)
             files.append('{0}.trim{1}'.format(fbase, fext))
             o = open_func(filename, 'wb')
-        if index < 100 and phred == 33:
+        if index < 1000 and phred == 33:
             if any([i for i in reads[3] if ord(i) > 74]):
                 phred = 64
+                for worker in workers:
+                    worker.phred64 = True
         o.write('%s\n' % '\n'.join(reads))
 
     if index % chunksize:
@@ -156,8 +173,15 @@ def main():
     for filename in files+tmpfiles:
         os.remove(filename)
 
-    return phred
+    # log
+    with open('{0}.log'.format(logfile), 'wb') as o:
+        o.write('Starting reads: {0}\n'.format(index+1))
+        trimmed = FastqIterator(dest.name)
+        for dest_index, dest_read in enumerate(trimmed):
+            pass
+        o.write('Processed reads: {0}\n'.format(dest_index+1))
 
+    sys.stdout.write('{0}\n'.format(phred))
     return phred
 
 if __name__ == "__main__":

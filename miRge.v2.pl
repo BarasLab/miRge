@@ -10,6 +10,7 @@ use GD::Graph::bars;
 use GD::Graph::hbars;
 use File::Basename;
 use File::Spec;
+# use Data::Dumper;
 
 
 ## Path to programs, by default miRge will use its own copies of the public tools bowtie and cutadapt within the miRge.seqUtils folder
@@ -34,14 +35,17 @@ GetOptions($settings,('help' => \$help,'adapter=s','species=s','CPU=s',
 
 @sampleFiles = split(',', $$settings{'SampleFiles'});
 my $adapter = $$settings{adapter}||"none";
-if($adapter == 'illumina'){
+if($adapter eq 'illumina'){
 	$adapter = 'TGGAATTCTCGGGTGCCAAGGAACTCCAG';
 }
-elsif($adapter == 'ion'){
+elsif($adapter eq 'ion'){
 	$adapter = '+11';
 }
 
-my $speciesType = $$settings{species}||0;
+my $speciesType = $$settings{species}||"none";
+if($speciesType eq "none"){
+	die "You must provide a species type.\n";
+}
 my $isomirCutoff = $$settings{isomirCutoff}||0.9;
 my $numCPU = $$settings{CPU}||1;
 my $cutAdaptBinary = $$settings{cutadapt}||"cutadapt";
@@ -68,6 +72,7 @@ my $annotNames = ['exact miRNA', 'hairpin miRNA', 'non miRNA/mRNA RNA', 'mRNA', 
 pod2usage( -verbose => 1) if( $help );
 pod2usage( -verbose => 1) if( @sampleFiles<1 );
 pod2usage( -verbose => 1) if( $numCPU =~ m/\D/ );
+
 
 my $mirge_start_time = time;
 print "\nChecking for bowtie and indices ...\n";
@@ -220,10 +225,7 @@ sub trimRaw {
 	
 	$$logHash{'quantStats'}[$sampleIndex]{'cpuTime-trim'} = time;
 	my $command = "--adapter=$adapter --cutadapt=$cutAdaptBinary --threads=$numCPU --infile=$infile --outfile=$outfile";
-	if($phred64){
-		$command = $command." --phred64";
-	}
-	system("python trim_file.py $command");
+	my $phred64 = `python trim_file.py $command` == 64;
 	$$logHash{'quantStats'}[$sampleIndex]{'cpuTime-trim'} = getTimeDelta($$logHash{'quantStats'}[$sampleIndex]{'cpuTime-trim'}, time);
 	
 	open $fh, "<", "$infile.log";
@@ -989,7 +991,8 @@ miRge.v1.pl takes the following arguments:
 						
 =item --phred64                                 
 
-						Input fastq files are in phred64 format.
+						Input fastq files are in phred64 format. By default the phred score is inferred from the
+						first 1000 reads of the file.
 
 =item --bowtie                                  
 
