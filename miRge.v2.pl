@@ -26,10 +26,11 @@ my $settings={};
 my $help;
 my @sampleFiles;
 my $phred64 = '';
+my $isomirDiff = '';
 
 GetOptions($settings,('help' => \$help,'adapter=s','species=s','CPU=s',
 	'SampleFiles=s','isomirCutoff=s', 'bowtie=s', 'mirna=s', 'hairpin=s',
-	'other=s', 'est=s', 'cutadapt=s', 'phred64' => \$phred64));
+	'other=s', 'est=s', 'cutadapt=s', 'phred64' => \$phred64, 'diff-isomirs' => \$isomirDiff));
 
 @sampleFiles = split(',', $$settings{'SampleFiles'});
 my $adapter = $$settings{adapter}||"none";
@@ -643,70 +644,72 @@ sub writeDataToCSV {
 	}
 	close $fh;
 
-	open $fh, ">", $isomirFile;
-	my $sh;
-	open $sh, ">", $isomirSampleFile;
-	print $sh "miRNA";
-	print $fh "miRNA, sequence";
-	for ($i=0;$i<scalar(@sampleFiles);$i++) {
-		print $fh ", $sampleFiles[$i]";
-		print $sh ", $sampleFiles[$i] isomir+miRNA Entropy";
-		print $sh ", $sampleFiles[$i] % Canonical Sequence";
-		print $sh ", $sampleFiles[$i] Canonical RPM";
-	}
-	print $fh ", Entropy";
-	print $fh "\n";
-	print $sh "\n";
-	my $miRNA;
-	my $miRNASeq;
-	foreach $miRNA (keys %{isomirHash}) {
-		my %sampleIsomirs;
-		my $samplemiRNAs = ();
+	if($isomirDiff){
+		open $fh, ">", $isomirFile;
+		my $sh;
+		open $sh, ">", $isomirSampleFile;
+		print $sh "miRNA";
+		print $fh "miRNA, sequence";
 		for ($i=0;$i<scalar(@sampleFiles);$i++) {
-			$sampleIsomirs{$i} = ();
-			@{$samplemiRNAs}[$i] = 0;
+			print $fh ", $sampleFiles[$i]";
+			print $sh ", $sampleFiles[$i] isomir+miRNA Entropy";
+			print $sh ", $sampleFiles[$i] % Canonical Sequence";
+			print $sh ", $sampleFiles[$i] Canonical RPM";
 		}
-		foreach $miRNASeq (keys %{$isomirHash{$miRNA}{'mirnas'}}) {
-			my @entry = ($miRNA);
-			push(@entry, $miRNASeq);
-			my @sampleArray = @{$isomirHash{$miRNA}{'mirnas'}{$miRNASeq}};
-			for ($i=0;$i<scalar(@sampleArray);$i++) {
-				@{$samplemiRNAs}[$i] += $sampleArray[$i];
+		print $fh ", Entropy";
+		print $fh "\n";
+		print $sh "\n";
+		my $miRNA;
+		my $miRNASeq;
+		foreach $miRNA (keys %{isomirHash}) {
+			my %sampleIsomirs;
+			my $samplemiRNAs = ();
+			for ($i=0;$i<scalar(@sampleFiles);$i++) {
+				$sampleIsomirs{$i} = ();
+				@{$samplemiRNAs}[$i] = 0;
 			}
-		}
-		foreach $miRNASeq (keys %{$isomirHash{$miRNA}{'isomirs'}}) {
-			my @entry = ($miRNA);
-			push(@entry, $miRNASeq);
-			my @sampleArray = @{$isomirHash{$miRNA}{'isomirs'}{$miRNASeq}};
-			for ($i=0;$i<scalar(@sampleArray);$i++) {
-				push(@{$sampleIsomirs{$i}}, $sampleArray[$i]);
+			foreach $miRNASeq (keys %{$isomirHash{$miRNA}{'mirnas'}}) {
+				my @entry = ($miRNA);
+				push(@entry, $miRNASeq);
+				my @sampleArray = @{$isomirHash{$miRNA}{'mirnas'}{$miRNASeq}};
+				for ($i=0;$i<scalar(@sampleArray);$i++) {
+					@{$samplemiRNAs}[$i] += $sampleArray[$i];
+				}
 			}
-			my $entropy = calcEntropy(\@sampleArray);
-			push(@entry, @sampleArray);
-			push(@entry, $entropy);
-			push(@entry, "\n");
-			print $fh join(', ', @entry);
-		}
-		my @isomirOut = ($miRNA);
-		foreach my $sampleLane (keys %{sampleIsomirs}){
-			my $sampleEntropy = calcEntropy(\@{$sampleIsomirs{$sampleLane}});
-			my $isomirSum = sumArray(\@{$sampleIsomirs{$sampleLane}});
-			push(@{$sampleIsomirs{$sampleLane}}, @{$samplemiRNAs}[$sampleLane]);
-			my $sampleEntropyWithmiRNA = calcEntropy(\@{$sampleIsomirs{$sampleLane}});
-			my $miRNASum = $$samplemiRNAs[$sampleLane];
-			# push(@withinSampleEntropy, $sampleEntropy);
-			push(@isomirOut, $sampleEntropyWithmiRNA);
-			push(@isomirOut, $miRNASum);
-			my $combined = $miRNASum + $isomirSum;
-			if($combined > 0){
-				push(@isomirOut, 100*$miRNASum / $combined);
+			foreach $miRNASeq (keys %{$isomirHash{$miRNA}{'isomirs'}}) {
+				my @entry = ($miRNA);
+				push(@entry, $miRNASeq);
+				my @sampleArray = @{$isomirHash{$miRNA}{'isomirs'}{$miRNASeq}};
+				for ($i=0;$i<scalar(@sampleArray);$i++) {
+					push(@{$sampleIsomirs{$i}}, $sampleArray[$i]);
+				}
+				my $entropy = calcEntropy(\@sampleArray);
+				push(@entry, @sampleArray);
+				push(@entry, $entropy);
+				push(@entry, "\n");
+				print $fh join(', ', @entry);
 			}
+			my @isomirOut = ($miRNA);
+			foreach my $sampleLane (keys %{sampleIsomirs}){
+				my $sampleEntropy = calcEntropy(\@{$sampleIsomirs{$sampleLane}});
+				my $isomirSum = sumArray(\@{$sampleIsomirs{$sampleLane}});
+				push(@{$sampleIsomirs{$sampleLane}}, @{$samplemiRNAs}[$sampleLane]);
+				my $sampleEntropyWithmiRNA = calcEntropy(\@{$sampleIsomirs{$sampleLane}});
+				my $miRNASum = $$samplemiRNAs[$sampleLane];
+				# push(@withinSampleEntropy, $sampleEntropy);
+				push(@isomirOut, $sampleEntropyWithmiRNA);
+				push(@isomirOut, $miRNASum);
+				my $combined = $miRNASum + $isomirSum;
+				if($combined > 0){
+					push(@isomirOut, 100*$miRNASum / $combined);
+				}
+			}
+			push(@isomirOut, "\n");
+			print $sh join(', ', @isomirOut);
 		}
-		push(@isomirOut, "\n");
-		print $sh join(', ', @isomirOut);
+		close $fh;
+		close $sh;
 	}
-	close $fh;
-	close $sh;
 	
 	open $fh, ">", $unmappedFile;
 	print $fh "uniqueSequence, annotFlag, $$annotNames[0], $$annotNames[1], $$annotNames[2], $$annotNames[3], $$annotNames[4]";
@@ -976,6 +979,13 @@ miRge.v1.pl takes the following arguments:
 									
 						Specify The number of processors to use for trimming, qc, and alignment.
 						default: 1
+						
+=item --diff-isomirs
+
+						Will output two additional files, xxx.isomirs.samples.csv and xxx.isomirs.csv,
+						which are the entropy of isomirs as compared with their canonical miRNAs, and the
+						ratio of small RNA species which are canonical. These can be used to identify 
+						patterns of interest for further analysis of isomirs.
 						
 =item --phred64                                 
 
