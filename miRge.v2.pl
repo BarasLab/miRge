@@ -18,6 +18,7 @@ my $miRgePath = abs_path($0);
 local $ENV{PATH} = "$ENV{PATH}:".$miRgePath."miRge.seqUtils/";
 $miRgePath =~ s/\/[^\/]+\.pl/\//;
 my $refPath = $miRgePath."miRge.seqLibs/";
+my $trimBinary = File::Spec->catfile($miRgePath,"trim_file.py);
 
 if(not -d $refPath){
 	mkdir $refPath;
@@ -225,7 +226,7 @@ sub trimRaw {
 	
 	$$logHash{'quantStats'}[$sampleIndex]{'cpuTime-trim'} = time;
 	my $command = "--adapter=$adapter --cutadapt=$cutAdaptBinary --threads=$numCPU --infile=$infile --outfile=$outfile";
-	my $phred64 = `python trim_file.py $command` == 64;
+	my $phred64 = `python $trimBinary $command` == 64;
 	$$logHash{'quantStats'}[$sampleIndex]{'cpuTime-trim'} = getTimeDelta($$logHash{'quantStats'}[$sampleIndex]{'cpuTime-trim'}, time);
 	
 	open $fh, "<", "$infile.log";
