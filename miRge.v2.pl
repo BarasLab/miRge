@@ -1032,6 +1032,8 @@ miRge.v1.pl takes the following arguments:
 
 =item Marc Halushka, E<lt>mhalush1@jhmi.eduE<gt>.
 
+=item Chris Mitchell E<lt>cmitch48@jhmi.eduE<gt>.
+
 =item Jason Myers, E<lt>jason_myers@urmc.rochester.eduE<gt>.
 
 =head2 COPYRIGHT
