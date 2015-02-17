@@ -18,7 +18,7 @@ my $miRgePath = abs_path($0);
 local $ENV{PATH} = "$ENV{PATH}:".$miRgePath."miRge.seqUtils/";
 $miRgePath =~ s/\/[^\/]+\.pl/\//;
 my $refPath = $miRgePath."miRge.seqLibs/";
-my $trimBinary = File::Spec->catfile($miRgePath,"trim_file.py);
+my $trimBinary = File::Spec->catfile($miRgePath,"trim_file.py");
 
 if(not -d $refPath){
 	mkdir $refPath;
