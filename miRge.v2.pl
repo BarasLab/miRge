@@ -15,7 +15,7 @@ use File::Spec;
 
 ## Path to programs, by default miRge will use its own copies of the public tools bowtie and cutadapt within the miRge.seqUtils folder
 my $miRgePath = abs_path($0);
-local $ENV{PATH} = "$ENV{PATH}:".$miRgePath."miRge.seqUtils/";
+local $ENV{PATH} = "$ENV{PATH}:".$miRgePath."miRge.seqUtils/cutadapt-1.7.1/bin/";
 $miRgePath =~ s/\/[^\/]+\.pl/\//;
 my $refPath = $miRgePath."miRge.seqLibs/";
 my $trimBinary = File::Spec->catfile($miRgePath,"trim_file.py");
