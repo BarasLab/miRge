@@ -1,6 +1,18 @@
-import argparse, sys, gzip, subprocess, os, fileinput, time
+import argparse
+import sys
+import gzip
+import subprocess
+import os
+import fileinput
+import time
 from collections import deque
 from multiprocessing import Process, Queue
+
+# extend path to include the provided cutadapt
+trimPath, trimFile = os.path.split(os.path.realpath(__file__))
+cutPath = os.path.join(trimPath, 'miRge.seqUtils', 'cutadapt-1.7.1', 'bin')
+env = os.environ.copy()
+env['PATH'] = '{0}:{1}'.format(env['PATH'], cutPath)
 
 class GenericIterator(object):
     gz = False
@@ -78,11 +90,12 @@ class Worker(Process):
     def run(self):
         for filename in iter(self.queue.get, None):
             outfile, outext = os.path.splitext(filename)
+            # no-trim for "none"
             p = subprocess.Popen([self.cutadapt, '-q', '10', '-m', '16', self.adapter_flag,
                                   self.adapter, '-e', '0.12', '--quality-base',
                                   '64' if self.phred64 else '33', '--quiet',
                                   '--discard-untrimmed',
-                                  '-o', '{0}.trim{1}'.format(outfile, outext), filename])
+                                  '-o', '{0}.trim{1}'.format(outfile, outext), filename], env=env)
             p.communicate()
 
 parser = argparse.ArgumentParser()
