@@ -82,19 +82,21 @@ class Worker(Process):
         self.queue=queue
         self.phred64 = False
         self.cutadapt = cutadapt
-        self.adapter_flag = '-a'
+        adapter_flag = '-a'
         if adapter.startswith('+'):
-            self.adapter_flag = '-u'
-        self.adapter = adapter
+            adapter_flag = '-u'
+        if adapter == 'none':
+            adapter_command = ['--no-trim']
+        else:
+            adapter_command = [adapter_flag, adapter, '--discard-untrimmed']
+        self.adapter_command = ' '.join(adapter_command)
 
     def run(self):
         for filename in iter(self.queue.get, None):
             outfile, outext = os.path.splitext(filename)
-            # no-trim for "none"
-            p = subprocess.Popen([self.cutadapt, '-q', '10', '-m', '16', self.adapter_flag,
-                                  self.adapter, '-e', '0.12', '--quality-base',
+            p = subprocess.Popen([self.cutadapt, '-q', '10', '-m', '16', self.adapter_command,
+                                  '-e', '0.12', '--quality-base',
                                   '64' if self.phred64 else '33', '--quiet',
-                                  '--discard-untrimmed',
                                   '-o', '{0}.trim{1}'.format(outfile, outext), filename], env=env)
             p.communicate()
 
@@ -121,17 +123,6 @@ def main():
         logfile = args.infile.name
     chunksize = 1000000
     adapter = args.adapter
-    if adapter == "none":
-        # just figure out and return the phred
-        for index, reads in enumerate(source):
-            if index < 1000 and phred == 33:
-                if any([i for i in reads[3] if ord(i) > 74]):
-                    phred = 64
-        with open('{0}.log'.format(logfile), 'wb') as o:
-            o.write('Starting reads: {0}\n'.format(index+1))
-            o.write('Processed reads: {0}\n'.format(index+1))
-        sys.stdout.write('{0}\n'.format(phred))
-        return phred
 
     # make the new files, since we don't know its size from the beginning and it'd be wasteful
     # to read it twice, split it to a million reads per file and process as such
