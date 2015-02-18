@@ -28,7 +28,7 @@ use GD::Graph::bars;
 use GD::Graph::hbars;
 use File::Basename;
 use File::Spec;
-# use Data::Dumper;
+use Data::Dumper;
 
 
 ## Path to programs, by default miRge will use its own copies of the public tools bowtie and cutadapt within the miRge.seqUtils folder
@@ -652,7 +652,7 @@ sub writeDataToCSV {
 				$key = $mirna;
 				$key2 = 'mirnas';
 			}
-			if(!(exists $isomirHash{$key})){
+			unless(exists $isomirHash{$key}){
 				$isomirHash{$key} = {};
 				$isomirHash{$key}{'mirnas'} = ();
 				$isomirHash{$key}{'isomirs'} = {};
@@ -697,8 +697,6 @@ sub writeDataToCSV {
 				@{$samplemiRNAs}[$i] = 0;
 			}
 			foreach $miRNASeq (keys %{$isomirHash{$miRNA}{'mirnas'}}) {
-				my @entry = ($miRNA);
-				push(@entry, $miRNASeq);
 				my @sampleArray = @{$isomirHash{$miRNA}{'mirnas'}{$miRNASeq}};
 				for ($i=0;$i<scalar(@sampleArray);$i++) {
 					@{$samplemiRNAs}[$i] += $sampleArray[$i];
@@ -723,14 +721,18 @@ sub writeDataToCSV {
 				my $isomirSum = sumArray(\@{$sampleIsomirs{$sampleLane}});
 				push(@{$sampleIsomirs{$sampleLane}}, @{$samplemiRNAs}[$sampleLane]);
 				my $sampleEntropyWithmiRNA = calcEntropy(\@{$sampleIsomirs{$sampleLane}});
-				my $miRNASum = $$samplemiRNAs[$sampleLane];
-				# push(@withinSampleEntropy, $sampleEntropy);
+				my $miRNARPM = $$samplemiRNAs[$sampleLane];
+
 				push(@isomirOut, $sampleEntropyWithmiRNA);
-				push(@isomirOut, $miRNASum);
-				my $combined = $miRNASum + $isomirSum;
+
+				my $combined = $miRNARPM + $isomirSum;
 				if($combined > 0){
-					push(@isomirOut, 100*$miRNASum / $combined);
+					push(@isomirOut, 100*$miRNARPM / $combined);
 				}
+				else{
+					push(@isomirOut, "NA");
+				}
+				push(@isomirOut, $miRNARPM);
 			}
 			push(@isomirOut, "\n");
 			print $sh join(', ', @isomirOut);
