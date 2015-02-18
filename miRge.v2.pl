@@ -15,6 +15,7 @@ use File::Spec;
 
 ## Path to programs, by default miRge will use its own copies of the public tools bowtie and cutadapt within the miRge.seqUtils folder
 my $miRgePath = abs_path($0);
+my $version = "2.0";
 local $ENV{PATH} = "$ENV{PATH}:".$miRgePath."miRge.seqUtils/cutadapt-1.7.1/bin/";
 $miRgePath =~ s/\/[^\/]+\.pl/\//;
 my $refPath = $miRgePath."miRge.seqLibs/";
@@ -29,8 +30,9 @@ my $help;
 my @sampleFiles;
 my $phred64 = '';
 my $isomirDiff = '';
+my $versionAsk = '';
 
-GetOptions($settings,('help' => \$help,'adapter=s','species=s','CPU=s',
+GetOptions($settings,('help' => \$help,'version' => \$versionAsk,'adapter=s','species=s','CPU=s',
 	'SampleFiles=s','isomirCutoff=s', 'bowtie=s', 'mirna=s', 'hairpin=s',
 	'other=s', 'est=s', 'cutadapt=s', 'phred64' => \$phred64, 'diff-isomirs' => \$isomirDiff));
 
@@ -67,6 +69,7 @@ my $tStamp = int(time);
 my $t;
 my $annotNames = ['exact miRNA', 'hairpin miRNA', 'non miRNA/mRNA RNA', 'mRNA', 'isomiR miRNA'];
 
+pod2usage({ -message => "miRge version $version", -verbose => 0}) if( $versionAsk );
 pod2usage( -verbose => 1) if( $help );
 pod2usage( -verbose => 1) if( @sampleFiles<1 );
 pod2usage({ -message => "You must provide an integral number of cores to use.", -verbose => 0}) if( $numCPU =~ m/\D/ );
@@ -943,18 +946,19 @@ __END__
 
 =head1 SYNOPSIS
 
-perl miRge.v2.pl [--help] [--man] [--cutadapt none|illumina|ion] [--species human|mouse] [--CPU #] --SampleFiles sample1.fastq,sample2.fastq,...
+perl miRge.pl [--help] [--version] [--cutadapt none|illumina|ion|sequence] [--species human|mouse|custom_name] [--CPU #] --SampleFiles sample1.fastq,sample2.fastq,...
 
 Examples:
 
-	perl miRge.v1.pl --help
-	perl miRge.v1.pl --SampleFiles human1.fastq,human2.fastq
-	perl miRge.v1.pl --cutadapt illumina --species mouse --CPU 12 --SampleFiles [sample1.fastq,sample2.fastq]
+	perl miRge.pl --help
+	perl miRge.pl --adapter illumina --species human --SampleFiles seq_file.fastq
+	perl miRge.pl --adapter ion --species human --CPU 8 --diff-isomirs --SampleFiles human1.fastq,human2.fastq,human3.fastq
+	perl miRge.pl --species mouse --diff-isomirs --phred64 --bowtie /usr/local/bin/bowtie --SampleFiles sample1.fastq,sample2.fastq
 	
 
 =head1 OPTIONS
 
-miRge.v1.pl takes the following arguments:
+miRge.pl takes the following arguments:
 
 =over 4
 
@@ -964,17 +968,15 @@ miRge.v1.pl takes the following arguments:
 
 =item --SampleFiles
 
-						Provide a comma-seperated list with no intervening space of fastq
-						formatted files	containing all of the reads for each individual sample.
+						Provide a comma-separated list with no intervening spaces of fastq of fastq.gz
+						formatted files containing all of the reads for each individual sample.
+						Example: sample1.fastq,sample2.fastq,sample3.fastq
 						
-=item --species human|mouse
+=item --species human|mouse|custom_name
 										
 						Specify which reference species should be used. Used to align with 
-						miRge provided references. If you provide your own reference files as well,
-						this will be the directory they are stored under -- so you only have to 
-						provide them once. We recommend appending a version number or an identifier
-						to keep these unique -- such as 'human_38'.
-						default: human
+						miRge provided references. Custom reference files built with miRge-build.pl
+						can also be referenced here by their designated species name.
 						
 =back
 
@@ -984,14 +986,19 @@ miRge.v1.pl takes the following arguments:
 
 =item --help
 
-						Displays the usage message.
+						Displays this usage message.
+						
+=item --version
 
-=item --adapter illumina|ion|custom sequence
+						Displays the version of miRge being used.
+
+=item --adapter none|illumina|ion|sequence
 
 						Run adapter removal and quality filtering via cutadapt.
 						default: none
 						illumina: TGGAATTCTCGGGTGCCAAGGAACTCCAG (TruSeq small RNA kit)
 						ion: remove first 11 base pairs (as per miRQC protocol)
+						sequence: Provide your own adapter sequence, such as --adapter TGGAATTCTC
 
 
 =item --CPU #
@@ -1003,45 +1010,24 @@ miRge.v1.pl takes the following arguments:
 
 						Will output two additional files, xxx.isomirs.samples.csv and xxx.isomirs.csv,
 						which are the entropy of isomirs as compared with their canonical miRNAs, and the
-						ratio of small RNA species which are canonical. These can be used to identify 
-						patterns of interest for further analysis of isomirs.
+						ratio of small RNA species which are canonical. These can be used to flag miRNAs
+						that are predominately non-canonical isomiRs and may represent sequencing errors
+						and can be used to identify isomir patterns that deviate between specimens.
+						default: not generated
 						
 =item --phred64                                 
 
-						Input fastq files are in phred64 format. By default the phred score is inferred from the
-						first 1000 reads of the file.
+						Input fastq files are in phred64 format. By default miRge attempts to inferr the
+						phred score from the first 1000 reads of each file. If this fails to detect the phred
+						score, this can be used to force phred64.
 
 =item --bowtie                                  
 
-						The path to your bowtie binary
+						The path to the system's bowtie binary
 						
 =item --cutadapt                                  
 
-						The path to cutadapt
-
-=back
-
-=item Custom Reference Files: If used, each file type must be provided
-
-=over 4
-
-=item --mirna					
-
-						A fasta file consisting of mature miRNA reference sequences to align against.
-						
-=item --hairpin					
-
-						A fasta file consisting of hairpin miRNA reference sequences to align against.
-						
-=item --other				
-
-						A fasta file consisting of the additional reference sequences to align against.
-						This file aims to identify additional sources of small reads such as tRNAs or rRNAs.
-						
-=item --est					
-
-						A fasta file consisting of additional background sources of miRNAs.
-
+						The path to the cutadapt binary
 
 =back
 
