@@ -44,9 +44,6 @@ elsif($adapter eq 'ion'){
 }
 
 my $speciesType = $$settings{species}||"none";
-if($speciesType eq "none"){
-	die "You must provide a species type.\n";
-}
 my $isomirCutoff = $$settings{isomirCutoff}||0.9;
 my $numCPU = $$settings{CPU}||1;
 my $cutAdaptBinary = $$settings{cutadapt}||"cutadapt";
@@ -72,7 +69,8 @@ my $annotNames = ['exact miRNA', 'hairpin miRNA', 'non miRNA/mRNA RNA', 'mRNA', 
 
 pod2usage( -verbose => 1) if( $help );
 pod2usage( -verbose => 1) if( @sampleFiles<1 );
-pod2usage( -verbose => 1) if( $numCPU =~ m/\D/ );
+pod2usage({ -message => "You must provide an integral number of cores to use.", -verbose => 0}) if( $numCPU =~ m/\D/ );
+pod2usage({ -message => "You must provide a species type.", -verbose => 0}) if( $speciesType eq "none" );
 
 
 my $mirge_start_time = time;
@@ -948,7 +946,7 @@ Examples:
 	perl miRge.v1.pl --cutadapt illumina --species mouse --CPU 12 --SampleFiles [sample1.fastq,sample2.fastq]
 	
 
-=head2 ARGUMENTS
+=head1 OPTIONS
 
 miRge.v1.pl takes the following arguments:
 
@@ -1038,7 +1036,7 @@ miRge.v1.pl takes the following arguments:
 						Provide a comma-seperated list with no intervening space of fastq
 						formatted files	containing all of the reads for each individual sample.
 
-=back
+
 
 =head2 AUTHORs
 
@@ -1049,6 +1047,7 @@ miRge.v1.pl takes the following arguments:
 =item Chris Mitchell E<lt>cmitch48@jhmi.eduE<gt>.
 
 =item Jason Myers, E<lt>jason_myers@urmc.rochester.eduE<gt>.
+
 
 =head2 COPYRIGHT
 
