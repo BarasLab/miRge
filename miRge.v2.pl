@@ -490,6 +490,12 @@ sub filter {
 			}
 		}
 	}	
+	
+	for ($i=0; $i<scalar(@sampleFiles); $i++) {
+		if($$logHash{'quantStats'}[$i]{'mirnaReadsFiltered'} == 0){
+			die "No miRNA reads were found in sample $sampleFiles[$i]. Please check your files and provided arguments.\n";
+		}
+	}
 }
 
 sub generateGraphs {
@@ -952,6 +958,26 @@ miRge.v1.pl takes the following arguments:
 
 =over 4
 
+=item Required Parameters:
+    
+=over 4
+
+=item --SampleFiles
+
+						Provide a comma-seperated list with no intervening space of fastq
+						formatted files	containing all of the reads for each individual sample.
+						
+=item --species human|mouse
+										
+						Specify which reference species should be used. Used to align with 
+						miRge provided references. If you provide your own reference files as well,
+						this will be the directory they are stored under -- so you only have to 
+						provide them once. We recommend appending a version number or an identifier
+						to keep these unique -- such as 'human_38'.
+						default: human
+						
+=back
+
 =item Optional Parameters:
 
 =over 4
@@ -967,14 +993,6 @@ miRge.v1.pl takes the following arguments:
 						illumina: TGGAATTCTCGGGTGCCAAGGAACTCCAG (TruSeq small RNA kit)
 						ion: remove first 11 base pairs (as per miRQC protocol)
 
-=item --species human|mouse
-										
-						Specify which reference species should be used. Used to align with 
-						miRge provided references. If you provide your own reference files as well,
-						this will be the directory they are stored under -- so you only have to 
-						provide them once. We recommend appending a version number or an identifier
-						to keep these unique -- such as 'human_38'.
-						default: human
 
 =item --CPU #
 									
@@ -1026,16 +1044,6 @@ miRge.v1.pl takes the following arguments:
 
 
 =back
-
-=item Required Parameters:
-    
-=over 4
-
-=item --SampleFiles
-
-						Provide a comma-seperated list with no intervening space of fastq
-						formatted files	containing all of the reads for each individual sample.
-
 
 
 =head2 AUTHORs
