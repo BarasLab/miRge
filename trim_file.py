@@ -160,6 +160,7 @@ def main():
         o.flush()
         o.close()
         read_queue.put(o.name)
+        tmpfiles.append(o.name)
 
     # poison pill to stop workers
     for i in range(args.threads):
