@@ -422,7 +422,7 @@ sub summarize {
 	my $seqKey;
 	my $mirKey;
 	my $i;
-	my $mirList = "$bowtieBinary-inspect -n $mrnaBWT";
+	my $mirList = "$bowtieBinary-inspect -n $mirnaBWT";
 		
 	$mirList = [split("\n",`$mirList`)];	
 	for ($i=0; $i<scalar(@{$mirList}); $i++) {
