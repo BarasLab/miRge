@@ -39,7 +39,7 @@ if(not -d $refPath){
 my $settings={};
 my $help;
 
-GetOptions($settings,('help' => \$help,'species=s', 'bowtie-build=s', 'mirna=s', 'hairpin=s','other=s', 'est=s'));
+GetOptions($settings,('help' => \$help,'species=s', 'bowtie-build=s', 'mirna=s', 'hairpin=s','other=s', 'mrna=s'));
 
 my $speciesType = $$settings{species}||"none";
 my $bowtieIndexBuilder = $$settings{'bowtie-build'}||"bowtie-build";
@@ -48,7 +48,7 @@ my $bwtIndexDir = File::Spec->catdir($refPath,$speciesType);
 my $mirnaBWT = File::Spec->catdir($bwtIndexDir,"mirna");
 my $hairpinBWT = File::Spec->catdir($bwtIndexDir,"hairpin");
 my $contBWT = File::Spec->catdir($bwtIndexDir,"other");
-my $estBWT = File::Spec->catdir($bwtIndexDir,"est");
+my $mrnaBWT = File::Spec->catdir($bwtIndexDir,"mrna");
 
 
 pod2usage( -verbose => 1) if( $help );
@@ -56,7 +56,7 @@ pod2usage({ -message => "You must provide a species type.", -verbose => 0}) if( 
 pod2usage({ -message => "You must provide a miRNA fasta file.", -verbose => 0}) if( not $$settings{mirna} );
 pod2usage({ -message => "You must provide a miRNA hairpin fasta file.", -verbose => 0}) if( not $$settings{hairpin} );
 pod2usage({ -message => "You must provide an 'other' fasta file.", -verbose => 0}) if( not $$settings{other} );
-pod2usage({ -message => "You must provide an est fasta file.", -verbose => 0}) if( not $$settings{est} );
+pod2usage({ -message => "You must provide a mrna fasta file.", -verbose => 0}) if( not $$settings{mrna} );
 
 
 my $mirge_start_time = time;
@@ -115,18 +115,18 @@ sub checkBowtie {
 	$mirnaBWT = checkBowtieIndex($mirnaBWT, $bowtieIndexBuilder, 'mirna');
 	$hairpinBWT = checkBowtieIndex($hairpinBWT, $bowtieIndexBuilder, 'hairpin');
 	$contBWT = checkBowtieIndex($contBWT, $bowtieIndexBuilder, 'other');
-	$estBWT = checkBowtieIndex($estBWT, $bowtieIndexBuilder, 'est');
+	$mrnaBWT = checkBowtieIndex($mrnaBWT, $bowtieIndexBuilder, 'mrna');
 }
 
 __END__
 
 =head1 SYNOPSIS
 
-perl miRge-build.pl [--help] [--species species_name] [--mirna fasta file] [--hairpin fasta file] [--other fasta file] [--est fasta file]
+perl miRge-build.pl [--help] [--species species_name] [--mirna fasta file] [--hairpin fasta file] [--other fasta file] [--mrna fasta file]
 
 Examples:
 
-	perl miRge-build.pl --species human_38 --mirna hsa_mirna.fa --hairpin hsa_hairpin.fa --other human_snorna.fa --est human_refseq.fa
+	perl miRge-build.pl --species human_38 --mirna hsa_mirna.fa --hairpin hsa_hairpin.fa --other human_snorna.fa --mrna human_refseq.fa
 	
 
 =head1 OPTIONS
@@ -159,7 +159,7 @@ miRge-build takes the following arguments:
 						A fasta file consisting of the additional reference sequences to align against.
 						This file aims to identify additional sources of small RNA reads such as tRNAs or rRNAs.
 						
-=item --est					
+=item --mrna					
 
 						A fasta file consisting of additional background sources of miRNAs.
 						
