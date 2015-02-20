@@ -51,8 +51,8 @@ my $isomirDiff = '';
 my $versionAsk = '';
 
 GetOptions($settings,('help' => \$help,'version' => \$versionAsk,'adapter=s','species=s','CPU=s',
-	'SampleFiles=s','isomirCutoff=s', 'bowtie=s', 'mirna=s', 'hairpin=s',
-	'other=s', 'est=s', 'cutadapt=s', 'phred64' => \$phred64, 'diff-isomirs' => \$isomirDiff));
+	'SampleFiles=s','isomirCutoff=s', 'bowtie=s',
+	'cutadapt=s', 'phred64' => \$phred64, 'diff-isomirs' => \$isomirDiff));
 
 @sampleFiles = split(',', $$settings{'SampleFiles'});
 my $adapter = $$settings{adapter}||"none";
@@ -72,8 +72,8 @@ my $bwtIndexDir = File::Spec->catdir($refPath,$speciesType);
 
 my $mirnaBWT = File::Spec->catdir($bwtIndexDir,"mirna");
 my $hairpinBWT = File::Spec->catdir($bwtIndexDir,"hairpin");
-my $contBWT = File::Spec->catdir($bwtIndexDir,"other");
-my $estBWT = File::Spec->catdir($bwtIndexDir,"est");
+my $otherBWT = File::Spec->catdir($bwtIndexDir,"other");
+my $mrnaBWT = File::Spec->catdir($bwtIndexDir,"mrna");
 
 
 
@@ -118,7 +118,7 @@ $t = time;
 summarize();
 miRNAmerge();
 filter();
-#generateGraphs();
+generateGraphs();
 writeHtmlReport();
 writeDataToCSV();
 $t = getTimeDelta($t,time);
@@ -209,8 +209,8 @@ sub checkBowtie {
 	# }
 	$mirnaBWT = checkBowtieIndex($mirnaBWT, $bowtieIndex, 'mirna');
 	$hairpinBWT = checkBowtieIndex($hairpinBWT, $bowtieIndex, 'hairpin');
-	$contBWT = checkBowtieIndex($contBWT, $bowtieIndex, 'other');
-	$estBWT = checkBowtieIndex($estBWT, $bowtieIndex, 'est');
+	$otherBWT = checkBowtieIndex($otherBWT, $bowtieIndex, 'other');
+	$mrnaBWT = checkBowtieIndex($mrnaBWT, $bowtieIndex, 'mrna');
 }
 
 sub runQuantitationPipeline {
@@ -302,14 +302,14 @@ sub runAnnotationPipeline {
 	my $bwtCmdLines = [
 		"$bwtCmd $mirnaBWT -n 0 -f SeqToAnnot.fasta 1>SeqToAnnot.sam 2>SeqToAnnot.log",
 		"$bwtCmd $hairpinBWT -n 1 -f SeqToAnnot.fasta 1>SeqToAnnot.sam 2>SeqToAnnot.log",
-		"$bwtCmd $contBWT -n 1 -f SeqToAnnot.fasta 1>SeqToAnnot.sam 2>SeqToAnnot.log",
-		"$bwtCmd $estBWT -n 0 -f SeqToAnnot.fasta 1>SeqToAnnot.sam 2>SeqToAnnot.log",
+		"$bwtCmd $otherBWT -n 1 -f SeqToAnnot.fasta 1>SeqToAnnot.sam 2>SeqToAnnot.log",
+		"$bwtCmd $mrnaBWT -n 0 -f SeqToAnnot.fasta 1>SeqToAnnot.sam 2>SeqToAnnot.log",
 		"$bwtCmd $mirnaBWT -f -l 15 -5 1 -3 2 -n 2 SeqToAnnot.fasta 1>SeqToAnnot.sam 2>SeqToAnnot.log"
 	]; 
 	# -- ALIGNMENT 1 -- length < 26, up to 0 mismatch to miRNA
 	# -- ALIGNMENT 2 -- length > 25, up to 1 mismatch to hairpin
 	# -- ALIGNMENT 3 -- any length, up to 1 mismatch other RNA
-	# -- ALIGNMENT 4 -- any length, up to 0 mismatch to EST
+	# -- ALIGNMENT 4 -- any length, up to 0 mismatch to mRNA
 	# -- ALIGNMENT 5 -- any length, up to 2 mismatches with special 5 vs 3 prime considerations to miRNA
 	
 	for ($i=0; $i<5; $i++) {
@@ -422,7 +422,7 @@ sub summarize {
 	my $seqKey;
 	my $mirKey;
 	my $i;
-	my $mirList = "$bowtieBinary-inspect -n $estBWT";
+	my $mirList = "$bowtieBinary-inspect -n $mrnaBWT";
 		
 	$mirList = [split("\n",`$mirList`)];	
 	for ($i=0; $i<scalar(@{$mirList}); $i++) {
@@ -486,6 +486,9 @@ sub miRNAmerge {
 			}
 		}
 		close $fh;
+	}
+	else{
+		print "Cannot find merges file, skipping merge step.\n";
 	}
 }
 
@@ -683,6 +686,7 @@ sub writeDataToCSV {
 			print $sh ", $sampleFiles[$i] isomir+miRNA Entropy";
 			print $sh ", $sampleFiles[$i] % Canonical Sequence";
 			print $sh ", $sampleFiles[$i] Canonical RPM";
+			print $sh ", $sampleFiles[$i] Top Isomir RPM";
 		}
 		print $fh ", Entropy";
 		print $fh "\n";
@@ -718,6 +722,7 @@ sub writeDataToCSV {
 			my @isomirOut = ($miRNA);
 			foreach my $sampleLane (keys %{sampleIsomirs}){
 				my $sampleEntropy = calcEntropy(\@{$sampleIsomirs{$sampleLane}});
+				my $topIsomir = max(\@{$sampleIsomirs{$sampleLane}});
 				my $isomirSum = sumArray(\@{$sampleIsomirs{$sampleLane}});
 				push(@{$sampleIsomirs{$sampleLane}}, @{$samplemiRNAs}[$sampleLane]);
 				my $sampleEntropyWithmiRNA = calcEntropy(\@{$sampleIsomirs{$sampleLane}});
@@ -733,6 +738,7 @@ sub writeDataToCSV {
 					push(@isomirOut, "NA");
 				}
 				push(@isomirOut, $miRNARPM);
+				push(@isomirOut, $topIsomir);
 			}
 			push(@isomirOut, "\n");
 			print $sh join(', ', @isomirOut);
