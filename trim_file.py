@@ -127,11 +127,6 @@ def main():
     # make the new files, since we don't know its size from the beginning and it'd be wasteful
     # to read it twice, split it to a million reads per file and process as such
     read_queue = Queue()
-    workers = []
-    for i in xrange(args.threads):
-        worker = Worker(queue=read_queue, cutadapt=args.cutadapt, phred64=phred, adapter=adapter)
-        workers.append(worker)
-        worker.start()
 
     o = None
     open_func = gzip.open if gzipped else open
@@ -152,8 +147,6 @@ def main():
         if index < 1000 and phred == 33:
             if any([i for i in reads[3] if ord(i) > 74]):
                 phred = 64
-                for worker in workers:
-                    worker.phred64 = True
         o.write('%s\n' % '\n'.join(reads))
 
     if index % chunksize:
@@ -165,6 +158,12 @@ def main():
     # poison pill to stop workers
     for i in range(args.threads):
         read_queue.put(None)
+
+    workers = []
+    for i in xrange(args.threads):
+        worker = Worker(queue=read_queue, cutadapt=args.cutadapt, phred64=phred==64, adapter=adapter)
+        workers.append(worker)
+        worker.start()
 
     while any([i.is_alive() for i in workers]):
         time.sleep(1)
