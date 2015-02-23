@@ -5,6 +5,7 @@ import subprocess
 import os
 import fileinput
 import time
+import re
 from collections import deque
 from multiprocessing import Process, Queue
 
@@ -13,6 +14,9 @@ trimPath, trimFile = os.path.split(os.path.realpath(__file__))
 cutPath = os.path.join(trimPath, 'miRge.seqUtils', 'cutadapt-1.7.1', 'bin')
 env = os.environ.copy()
 env['PATH'] = '{0}:{1}'.format(env['PATH'], cutPath)
+
+# parse trimmed reads
+trimParse = re.compile(r'Trimmed reads\:\s+(?P<trimmed>\d+)')
 
 class GenericIterator(object):
     gz = False
@@ -74,7 +78,7 @@ class FastqIterator(GenericIterator):
 
 
 class Worker(Process):
-    def __init__(self, queue=None, cutadapt=None, adapter=None, phred64=False):
+    def __init__(self, queue=None, results=None, cutadapt=None, adapter=None, phred64=False):
         super(Worker, self).__init__()
         self.queue=queue
         self.phred64 = False
@@ -95,7 +99,11 @@ class Worker(Process):
                                   '-e', '0.12', '--quality-base',
                                   '64' if self.phred64 else '33', '--quiet',
                                   '-o', '{0}.trim{1}'.format(outfile, outext), filename], env=env)
-            p.communicate()
+            sout, serr = p.communicate()
+            matched = trimParse.search(sout)
+            results.put(matched.group('trimmed') if matched else None)
+
+
 
 parser = argparse.ArgumentParser()
 parser.add_argument('--cutadapt', type=str)
@@ -118,12 +126,14 @@ def main():
         outfile, outext = os.path.splitext(outfile)
     else:
         logfile = args.infile.name
+
+    # Since we don't know the file sizes from the beginning and it'd be wasteful
+    # to read it twice, split it to x reads per file and process as such
     chunksize = 200000
     adapter = args.adapter
 
-    # make the new files, since we don't know its size from the beginning and it'd be wasteful
-    # to read it twice, split it to a million reads per file and process as such
     read_queue = Queue()
+    result_queue = Queue()
 
     o = None
     open_func = gzip.open if gzipped else open
@@ -158,7 +168,7 @@ def main():
 
     workers = []
     for i in xrange(args.threads):
-        worker = Worker(queue=read_queue, cutadapt=args.cutadapt, phred64=phred==64, adapter=adapter)
+        worker = Worker(queue=read_queue, results=result_queue, cutadapt=args.cutadapt, phred64=phred==64, adapter=adapter)
         workers.append(worker)
         worker.start()
 
@@ -174,13 +184,21 @@ def main():
     for filename in files+tmpfiles:
         os.remove(filename)
 
-    # log
+    # log, if the result queue has the trimmed count use it, else figure it out. We do it this way incase cutadapt changes
+    # their output
+
     with open('{0}.log'.format(logfile), 'wb') as o:
+        results = [result for result in iter(result_queue.get, None)]
         o.write('Starting reads: {0}\n'.format(index+1))
-        trimmed = FastqIterator(dest.name)
-        for dest_index, dest_read in enumerate(trimmed):
-            pass
-        o.write('Processed reads: {0}\n'.format(dest_index+1))
+        if None in results:
+            # something changed with cutadapt
+            trimmed = FastqIterator(dest.name)
+            for dest_index, dest_read in enumerate(trimmed):
+                pass
+            o.write('Processed reads: {0}\n'.format(dest_index+1))
+        else:
+            o.write('Processed reads: {0}\n'.format(sum(results)))
+
 
     sys.stdout.write('{0}\n'.format(phred))
     return phred
