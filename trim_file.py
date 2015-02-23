@@ -166,8 +166,6 @@ def main():
     # poison pill to stop workers
     for i in range(args.threads):
         read_queue.put(None)
-    # poison pill for results
-    result_queue.put(-1)
 
     workers = []
     for i in xrange(args.threads):
@@ -176,7 +174,7 @@ def main():
         worker.start()
 
     while any([i.is_alive() for i in workers]):
-        time.sleep(1)
+        time.sleep(0.01)
 
     # recombine all our files
     with dest as fout:
@@ -189,6 +187,8 @@ def main():
 
     # log, if the result queue has the trimmed count use it, else figure it out. We do it this way incase cutadapt changes
     # their output
+    # poison pill for results
+    result_queue.put(-1)
 
     with open('{0}.log'.format(logfile), 'wb') as o:
         results = [result for result in iter(result_queue.get, -1)]
@@ -200,7 +200,7 @@ def main():
                 pass
             o.write('Processed reads: {0}\n'.format(dest_index+1))
         else:
-            o.write('Processed reads: {0}\n'.format(sum(results)))
+            o.write('Processed reads: {0}\n'.format(sum(map(int,results))))
 
 
     sys.stdout.write('{0}\n'.format(phred))
