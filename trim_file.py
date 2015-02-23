@@ -16,7 +16,7 @@ env['PATH'] = '{0}:{1}'.format(env['PATH'], cutPath)
 
 class GenericIterator(object):
     gz = False
-    CHUNK_SIZE = 2**16
+    CHUNK_SIZE = 2**16+8
     UNCONSUMED = ''
     contents = []
 
@@ -25,7 +25,7 @@ class GenericIterator(object):
             self.gz = True
             self.filename = gzip.GzipFile(filename)
         elif isinstance(filename, basestring):
-            self.filename = open(filename)
+            self.filename = open(filename, 'rb', buffering=self.CHUNK_SIZE)
         elif isinstance(filename, (file,)):
             if filename.name.endswith('.gz'):
                 self.gz = True
@@ -39,29 +39,26 @@ class GenericIterator(object):
         return self
 
     def next(self):
-        if self.gz:
-            if self.contents:
-                return self.contents.popleft()
-            new_contents = self.filename.read(self.CHUNK_SIZE)
-            if not new_contents:
-                if self.UNCONSUMED:
-                    return self.UNCONSUMED
-                raise StopIteration
-            if new_contents and new_contents[-1] != '\n':
-                new_uc_index = new_contents.rfind('\n')+1
-                new_unconsumed = new_contents[new_uc_index:]
-                new_contents = new_contents[:new_uc_index]
-            else:
-                new_unconsumed = ''
-            new_contents = self.UNCONSUMED+new_contents
-            self.contents = new_contents.split('\n')
-            self.contents = filter(None, self.contents)
-            self.UNCONSUMED = new_unconsumed
-            self.contents = deque(self.contents)
-            if self.contents:
-                return self.contents.popleft()
+        if self.contents:
+            return self.contents.popleft()
+        new_contents = self.filename.read(self.CHUNK_SIZE)
+        if not new_contents:
+            if self.UNCONSUMED:
+                return self.UNCONSUMED
+            raise StopIteration
+        if new_contents and new_contents[-1] != '\n':
+            new_uc_index = new_contents.rfind('\n')+1
+            new_unconsumed = new_contents[new_uc_index:]
+            new_contents = new_contents[:new_uc_index]
         else:
-            return self.filename.next().strip()
+            new_unconsumed = ''
+        new_contents = self.UNCONSUMED+new_contents
+        self.contents = new_contents.split('\n')
+        self.contents = filter(None, self.contents)
+        self.UNCONSUMED = new_unconsumed
+        self.contents = deque(self.contents)
+        if self.contents:
+            return self.contents.popleft()
 
 class FastqIterator(GenericIterator):
     def __init__(self, filename):
@@ -121,7 +118,7 @@ def main():
         outfile, outext = os.path.splitext(outfile)
     else:
         logfile = args.infile.name
-    chunksize = 1000000
+    chunksize = 200000
     adapter = args.adapter
 
     # make the new files, since we don't know its size from the beginning and it'd be wasteful
