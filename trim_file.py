@@ -166,6 +166,8 @@ def main():
     # poison pill to stop workers
     for i in range(args.threads):
         read_queue.put(None)
+    # poison pill for results
+    result_queue.put(-1)
 
     workers = []
     for i in xrange(args.threads):
@@ -189,7 +191,7 @@ def main():
     # their output
 
     with open('{0}.log'.format(logfile), 'wb') as o:
-        results = [result for result in iter(result_queue.get, None)]
+        results = [result for result in iter(result_queue.get, -1)]
         o.write('Starting reads: {0}\n'.format(index+1))
         if None in results:
             # something changed with cutadapt
