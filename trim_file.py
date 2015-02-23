@@ -81,6 +81,7 @@ class Worker(Process):
     def __init__(self, queue=None, results=None, cutadapt=None, adapter=None, phred64=False):
         super(Worker, self).__init__()
         self.queue=queue
+        self.results = results
         self.phred64 = False
         self.cutadapt = cutadapt
         adapter_flag = '-a'
@@ -97,11 +98,11 @@ class Worker(Process):
             outfile, outext = os.path.splitext(filename)
             p = subprocess.Popen([self.cutadapt, '-q', '10', '-m', '16', self.adapter_command,
                                   '-e', '0.12', '--quality-base',
-                                  '64' if self.phred64 else '33', '--quiet',
-                                  '-o', '{0}.trim{1}'.format(outfile, outext), filename], env=env)
+                                  '64' if self.phred64 else '33',
+                                  '-o', '{0}.trim{1}'.format(outfile, outext), filename], env=env, stdout=subprocess.PIPE)
             sout, serr = p.communicate()
             matched = trimParse.search(sout)
-            results.put(matched.group('trimmed') if matched else None)
+            self.results.put(matched.group('trimmed') if matched else None)
 
 
 
