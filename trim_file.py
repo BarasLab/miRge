@@ -8,6 +8,7 @@ import time
 import re
 from collections import deque
 from multiprocessing import Process, Queue
+from distutils.spawn import find_executable
 
 # extend path to include the provided cutadapt
 trimPath, trimFile = os.path.split(os.path.realpath(__file__))
@@ -22,22 +23,24 @@ class GenericIterator(object):
     gz = False
     CHUNK_SIZE = 2**16+8
     UNCONSUMED = ''
-    contents = []
+    contents = deque()
 
     def __init__(self, filename, **kwrds):
         if isinstance(filename, basestring) and filename.endswith('.gz'):
             self.gz = True
-            self.filename = gzip.GzipFile(filename)
+            name = filename
         elif isinstance(filename, basestring):
-            self.filename = open(filename, 'rb', buffering=self.CHUNK_SIZE)
+            name = filename
         elif isinstance(filename, (file,)):
             if filename.name.endswith('.gz'):
                 self.gz = True
-                self.filename = gzip.GzipFile(filename.name)
-            else:
-                self.filename = filename
+            name = filename.name
         else:
             raise TypeError
+        if self.gz:
+            self.filename = gzip.GzipFile(fileobj=open(name, 'rb', buffering=self.CHUNK_SIZE), mode='rb')
+        else:
+            self.filename = open(name, mode='rb', buffering=self.CHUNK_SIZE)
 
     def __iter__(self):
         return self
@@ -83,7 +86,7 @@ class Worker(Process):
         self.queue=queue
         self.results = results
         self.phred64 = False
-        self.cutadapt = cutadapt
+        self.cutadapt = 'cutadapt' if cutadapt is None else cutadapt
         adapter_flag = '-a'
         if adapter.startswith('+'):
             adapter_flag = '-u'
@@ -120,6 +123,7 @@ def main():
     dest = args.outfile
     outfile, outext = os.path.splitext(args.infile.name)
     phred = args.phred64 or 33
+    threads = args.threads
     gzipped = False
     if outext == '.gz':
         gzipped = True
@@ -130,7 +134,7 @@ def main():
 
     # Since we don't know the file sizes from the beginning and it'd be wasteful
     # to read it twice, split it to x reads per file and process as such
-    chunksize = 200000
+    chunksize = 1000000
     adapter = args.adapter
 
     read_queue = Queue()
@@ -164,11 +168,11 @@ def main():
         tmpfiles.append(o.name)
 
     # poison pill to stop workers
-    for i in range(args.threads):
+    for i in xrange(threads):
         read_queue.put(None)
 
     workers = []
-    for i in xrange(args.threads):
+    for i in xrange(threads):
         worker = Worker(queue=read_queue, results=result_queue, cutadapt=args.cutadapt, phred64=phred==64, adapter=adapter)
         workers.append(worker)
         worker.start()
@@ -178,8 +182,17 @@ def main():
 
     # recombine all our files
     with dest as fout:
-        for entry in fileinput.input(files):
-            fout.write(entry)
+        # see if we can use cat, else use python
+        cat = find_executable('cat')
+        if cat is not None:
+            cmd = [cat]
+            cmd += files
+            p = subprocess.Popen(cmd, stdout=fout, env=env)
+            p.communicate()
+        else:
+            for entry in fileinput.input(files):
+                fout.write(entry)
+
 
     # delete temp files
     for filename in files+tmpfiles:
