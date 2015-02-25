@@ -18,6 +18,7 @@ env['PATH'] = '{0}:{1}'.format(env['PATH'], cutPath)
 
 # parse trimmed reads
 trimParse = re.compile(r'Trimmed reads\:\s+(?P<trimmed>\d+)')
+processedParse = re.compile(r'Processed reads\:\s+(?P<processed>\d+)')
 
 class GenericIterator(object):
     gz = False
@@ -105,7 +106,8 @@ class Worker(Process):
                                   '-o', '{0}.trim{1}'.format(outfile, outext), filename], env=env, stdout=subprocess.PIPE)
             sout, serr = p.communicate()
             matched = trimParse.search(sout)
-            self.results.put(matched.group('trimmed') if matched else None)
+            processed = processedParse.search(sout)
+            self.results.put({'trimmed': matched.group('trimmed'), 'processed': processed.group('processed')} if matched and processed else None)
 
 
 
@@ -140,63 +142,70 @@ def main():
     read_queue = Queue()
     result_queue = Queue()
 
-    o = None
-    open_func = gzip.open if gzipped else open
-    files = []
-    tmpfiles = []
-    for index, reads in enumerate(source):
-        newfile = index % chunksize == 0
-        if newfile:
-            if o is not None:
-                o.flush()
-                o.close()
-                read_queue.put(o.name)
-                tmpfiles.append(o.name)
-            filename = '{0}_{1}{2}{3}'.format(outfile, str(index/chunksize), outext, '.gz' if gzipped else '')
-            fbase, fext = os.path.splitext(filename)
-            files.append('{0}.trim{1}'.format(fbase, fext))
-            o = open_func(filename, 'wb')
-        if index < 1000 and phred == 33:
-            if any([i for i in reads[3] if ord(i) > 74]):
-                phred = 64
-        o.write('%s\n' % '\n'.join(reads))
-
-    if index % chunksize:
-        o.flush()
-        o.close()
-        read_queue.put(o.name)
-        tmpfiles.append(o.name)
-
-    # poison pill to stop workers
-    for i in xrange(threads):
-        read_queue.put(None)
-
     workers = []
     for i in xrange(threads):
         worker = Worker(queue=read_queue, results=result_queue, cutadapt=args.cutadapt, phred64=phred==64, adapter=adapter)
         workers.append(worker)
         worker.start()
 
+    o = None
+    open_func = gzip.open if gzipped else open
+    files = []
+    tmpfiles = []
+    if threads == 1:
+        filename = args.infile.name
+        read_queue.put(filename)
+        fbase, fext = os.path.splitext(filename)
+        files.append('{0}.trim{1}'.format(fbase, fext))
+    else:
+        for index, reads in enumerate(source):
+            newfile = index % chunksize == 0
+            if newfile:
+                if o is not None:
+                    o.flush()
+                    o.close()
+                    read_queue.put(o.name)
+                    tmpfiles.append(o.name)
+                filename = '{0}_{1}{2}{3}'.format(outfile, str(index/chunksize), outext, '.gz' if gzipped else '')
+                fbase, fext = os.path.splitext(filename)
+                files.append('{0}.trim{1}'.format(fbase, fext))
+                o = open_func(filename, 'wb')
+            if index < 1000 and phred == 33:
+                if any([i for i in reads[3] if ord(i) > 74]):
+                    phred = 64
+            o.write('%s\n' % '\n'.join(reads))
+
+        if index % chunksize:
+            o.flush()
+            o.close()
+            read_queue.put(o.name)
+            tmpfiles.append(o.name)
+
+    # poison pill to stop workers
+    for i in xrange(threads):
+        read_queue.put(None)
+
     while any([i.is_alive() for i in workers]):
         time.sleep(0.01)
 
     # recombine all our files
-    with dest as fout:
-        # see if we can use cat, else use python
-        cat = find_executable('cat')
-        if cat is not None:
-            cmd = [cat]
-            cmd += files
-            p = subprocess.Popen(cmd, stdout=fout, env=env)
-            p.communicate()
-        else:
-            for entry in fileinput.input(files):
-                fout.write(entry)
+    if threads != 1:
+        with dest as fout:
+            # see if we can use cat, else use python
+            cat = find_executable('cat')
+            if cat is not None:
+                cmd = [cat]
+                cmd += files
+                p = subprocess.Popen(cmd, stdout=fout, env=env)
+                p.communicate()
+            else:
+                for entry in fileinput.input(files):
+                    fout.write(entry)
 
 
-    # delete temp files
-    for filename in files+tmpfiles:
-        os.remove(filename)
+        # delete temp files
+        for filename in files+tmpfiles:
+            os.remove(filename)
 
     # log, if the result queue has the trimmed count use it, else figure it out. We do it this way incase cutadapt changes
     # their output
@@ -205,15 +214,19 @@ def main():
 
     with open('{0}.log'.format(logfile), 'wb') as o:
         results = [result for result in iter(result_queue.get, -1)]
-        o.write('Starting reads: {0}\n'.format(index+1))
         if None in results:
             # something changed with cutadapt
+            if threads == 1:
+                for index, reads in enumerate(source):
+                    pass
+            o.write('Starting reads: {0}\n'.format(index+1))
             trimmed = FastqIterator(dest.name)
             for dest_index, dest_read in enumerate(trimmed):
                 pass
             o.write('Processed reads: {0}\n'.format(dest_index+1))
         else:
-            o.write('Processed reads: {0}\n'.format(sum(map(int,results))))
+            o.write('Starting reads: {0}\n'.format(sum(map(int,[i.get('processed',0) for i in results]))))
+            o.write('Processed reads: {0}\n'.format(sum(map(int,[i.get('trimmed',0) for i in results]))))
 
 
     sys.stdout.write('{0}\n'.format(phred))
