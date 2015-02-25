@@ -55,6 +55,11 @@ GetOptions($settings,('help' => \$help,'version' => \$versionAsk,'adapter=s','sp
 	'cutadapt=s', 'phred64' => \$phred64, 'diff-isomirs' => \$isomirDiff));
 
 @sampleFiles = split(',', $$settings{'SampleFiles'});
+foreach my $element (@sampleFiles) {
+	unless(-e $element){
+		die "$element cannot be found, please check the paths of the sample files.";
+	}
+}
 my $adapter = $$settings{adapter}||"none";
 if($adapter eq 'illumina'){
 	$adapter = 'TGGAATTCTCGGGTGCCAAGGAACTCCAG';
