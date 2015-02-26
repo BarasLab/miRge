@@ -613,8 +613,8 @@ sub writeHtmlReport {
 	
 	open $fh, ">", $filename;
 	print $fh htmlHeader();
-	print $fh "<h1>miRge 1.1</h1>\n<h2>per sample .fastq file results</h2>\n";
-	print $fh $quantTable, "\n<br>\n<h2>annotation of unique sequences from sample set</h2>\n";
+	print $fh "<h1>miRge</h1>\n<h2>sample results</h2>\n";
+	print $fh $quantTable, "\n<br>\n<h2>annotation summary of unique sequences from sample set</h2>\n"
 	print $fh $annotTable, "\n</body>\n</html>\n";
 	close $fh;
 }

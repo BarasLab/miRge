@@ -1,5 +1,5 @@
 # miRge -- an ultrafast, rational program for small RNA-Seq alignment and analysis
-# Copyright (C) 2014-2015 Alex Baras <cmitch48@jhmi.edu>
+# Copyright (C) 2014-2015 Alex Baras <baras@jhmi.edu>
 # Copyright (C) 2015 Chris Mitchell <cmitch48@jhmi.edu>
 # Copyright (C) 2014-2015 Marc Halushka <mhalush1@jhmi.edu>
 # Copyright (C) 2014 Jason Myers, jason_myers@urmc.rochester.edu
