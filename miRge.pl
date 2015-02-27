@@ -88,6 +88,7 @@ my $seqHash = {}; # key is nucleotide sequence, each record is a hash with
 my $mirHash = {}; # key is annot string from miRNA library records
 my $readLengthHash = {}; # key is length
 my $logHash = {}; # two primary keys annot and quant
+my $graphHash = {};
 my $tStamp = int(time);
 my $t;
 my $annotNames = ['exact miRNA', 'hairpin miRNA', 'non miRNA/mRNA RNA', 'mRNA', 'isomiR miRNA'];
@@ -527,6 +528,26 @@ sub filter {
 	}
 }
 
+sub getGraphFilename {
+	my $filename = shift;
+	my $proposedPath = shift;
+	if(defined($$graphHash{$filename})){
+		return $$graphHash{$filename};
+	}
+	if(-e $proposedPath){
+		my $fileindex = 1;
+		$filename = $filename."_".$fileindex;
+		$proposedPath = 'miRge.'.$tStamp.'.graphs/'.$filename.'.readDistribution.png';
+		while(-e $proposedPath){
+			$fileindex = $fileindex + 1;
+			$filename = substr($filename, 0, length($filename)-length($fileindex)).$fileindex;
+			$proposedPath = 'miRge.'.$tStamp.'.graphs/'.$filename.'.readDistribution.png';
+		}
+	};
+	$$graphHash{$filename} = $proposedPath;
+	return $proposedPath;
+}
+
 sub generateGraphs {
 	my $lengthKey;
 	my $graph;
@@ -559,17 +580,7 @@ sub generateGraphs {
 			    borderclrs => undef,
 			    dclrs => ['blue']);
 		my $filename = fileparse($sampleFiles[$i]);
-		my $readPath = 'miRge.'.$tStamp.'.graphs/'.$filename.'.readDistribution.png';
-		if(-e $readPath){
-			my $fileindex = 1;
-			$filename = $filename."_".$fileindex;
-			$readPath = 'miRge.'.$tStamp.'.graphs/'.$filename.'.readDistribution.png';
-			while(-e $readPath){
-				$fileindex = $fileindex + 1;
-				$filename = substr($filename, 0, length($filename)-length($fileindex)).$fileindex;
-				$readPath = 'miRge.'.$tStamp.'.graphs/'.$filename.'.readDistribution.png';
-			}
-		};		
+		my $readPath = getGraphFilename($filename, 'miRge.'.$tStamp.'.graphs/'.$filename.'.readDistribution.png');
 		open $fh, ">", $readPath;
 		print $fh $graph->plot([[0..$lengthMax],$graphData])->png;
 		close $fh;
@@ -585,18 +596,8 @@ sub generateGraphs {
 		$graphData = [['miRNA','mRNA','other ncRNA','hairpin','unaligned'],
 		[$$logHash{'quantStats'}[$i]{'mirnaReads'}/$$logHash{'quantStats'}[$i]{'trimmedReads'},$$logHash{'quantStats'}[$i]{'mrnaReads'}/$$logHash{'quantStats'}[$i]{'trimmedReads'},$$logHash{'quantStats'}[$i]{'ornaReads'}/$$logHash{'quantStats'}[$i]{'trimmedReads'},$$logHash{'quantStats'}[$i]{'hairpinReads'}/$$logHash{'quantStats'}[$i]{'trimmedReads'},$$logHash{'quantStats'}[$i]{'remReads'}/$$logHash{'quantStats'}[$i]{'trimmedReads'}]];
 		
-		my $alignPath = 'miRge.'.$tStamp.'.graphs/'.$filename.'.readAlignments.png';
-		if(-e $alignPath){
-			my $fileindex = 1;
-			$filename = $filename."_".$fileindex;
-			$alignPath = 'miRge.'.$tStamp.'.graphs/'.$filename.'.readDistribution.png';
-			while(-e $alignPath){
-				$fileindex = $fileindex + 1;
-				$filename = substr($filename, 0, length($filename)-length($fileindex)).$fileindex;
-				$alignPath = 'miRge.'.$tStamp.'.graphs/'.$filename.'.readDistribution.png';
-			}
-		};	
-
+		my $alignPath = getGraphFilename($filename, 'miRge.'.$tStamp.'.graphs/'.$filename.'.readAlignments.png');
+		
 		open $fh, ">", $alignPath;
 		print $fh $graph->plot($graphData)->png;
 		close $fh;
@@ -614,16 +615,19 @@ sub writeHtmlReport {
 	$quantTable->setWidth(1000);
 	$quantTable->addRow(('filename','totalReads','trimmedReads<br>(unique)','mirnaReads / filtered<br>(unique)','hairpinReads','ornaReads','mrnaReads','remReads','composition'));
 	for ($i=0; $i<scalar(@sampleFiles); $i++) {
+		my $filename = fileparse($sampleFiles[$i]);
+		my $distPath = getGraphFilename($filename, 'miRge.'.$tStamp.'.graphs/'.$filename.'.readDistribution.png');
+		my $alignPath = getGraphFilename($filename, 'miRge.'.$tStamp.'.graphs/'.$filename.'.readAlignments.png');
 		$quantTable->addRow(($$logHash{'quantStats'}[$i]{'filename'},
 				     $$logHash{'quantStats'}[$i]{'totalReads'},
 				     '<table><tr></tr><tr><td>'.$$logHash{'quantStats'}[$i]{'trimmedReads'}.'<br>('.$$logHash{'quantStats'}[$i]{'trimmedUniq'}.')</td>'.
-				     '<td class="thumbnail1"><img src="miRge.'.$tStamp.'.graphs/'.$sampleFiles[$i].'.readDistribution.png" width="100px" height="50px"><span><img src="miRge.'.$tStamp.'.graphs/'.$sampleFiles[$i].'.readDistribution.png"></span></td></tr></table>',
+				     '<td class="thumbnail1"><img src="'.$distPath.'" width="100px" height="50px"><span><img src="'.$distPath.'"></span></td></tr></table>',
 				     $$logHash{'quantStats'}[$i]{'mirnaReads'}.' / '.$$logHash{'quantStats'}[$i]{'mirnaReadsFiltered'}.'<br>('.$$logHash{'quantStats'}[$i]{'mirnaUniqFiltered'}.')',
 				     $$logHash{'quantStats'}[$i]{'hairpinReads'},
 				     $$logHash{'quantStats'}[$i]{'ornaReads'},
 				     $$logHash{'quantStats'}[$i]{'mrnaReads'},
 				     $$logHash{'quantStats'}[$i]{'remReads'},
-				     '<table><tr></tr><tr><td class="thumbnail2"><img src="miRge.'.$tStamp.'.graphs/'.$sampleFiles[$i].'.readAlignments.png" width="100px" height="50px"><span><img src="miRge.'.$tStamp.'.graphs/'.$sampleFiles[$i].'.readAlignments.png"></span></td></tr></table>'));
+				     '<table><tr></tr><tr><td class="thumbnail2"><img src="'.$alignPath.'" width="100px" height="50px"><span><img src="'.$alignPath.'"></span></td></tr></table>'));
 	}
 	
 	$annotTable->setClass('tableBlue');
