@@ -34,7 +34,7 @@ use Data::Dumper;
 ## Path to programs, by default miRge will use its own copies of the public tools bowtie and cutadapt within the miRge.seqUtils folder
 my $miRgePath = abs_path($0);
 my $version = "2.0";
-local $ENV{PATH} = "$ENV{PATH}:".$miRgePath."miRge.seqUtils/cutadapt-1.7.1/bin/";
+local $ENV{PATH} = "$ENV{PATH}:".$miRgePath;
 $miRgePath =~ s/\/[^\/]+\.pl/\//;
 my $refPath = $miRgePath."miRge.seqLibs/";
 my $trimBinary = File::Spec->catfile($miRgePath,"trim_file.py");
@@ -614,7 +614,7 @@ sub writeHtmlReport {
 	open $fh, ">", $filename;
 	print $fh htmlHeader();
 	print $fh "<h1>miRge</h1>\n<h2>sample results</h2>\n";
-	print $fh $quantTable, "\n<br>\n<h2>annotation summary of unique sequences from sample set</h2>\n"
+	print $fh $quantTable, "\n<br>\n<h2>annotation summary of unique sequences from sample set</h2>\n";
 	print $fh $annotTable, "\n</body>\n</html>\n";
 	close $fh;
 }
