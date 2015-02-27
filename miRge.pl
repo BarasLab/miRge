@@ -559,7 +559,18 @@ sub generateGraphs {
 			    borderclrs => undef,
 			    dclrs => ['blue']);
 		my $filename = fileparse($sampleFiles[$i]);
-		open $fh, ">", 'miRge.'.$tStamp.'.graphs/'.$filename.'.readDistribution.png';
+		my $readPath = 'miRge.'.$tStamp.'.graphs/'.$filename.'.readDistribution.png';
+		if(-e $readPath){
+			my $fileindex = 1;
+			$filename = $filename."_".$fileindex;
+			$readPath = 'miRge.'.$tStamp.'.graphs/'.$filename.'.readDistribution.png';
+			while(-e $readPath){
+				$fileindex = $fileindex + 1;
+				$filename = substr($filename, 0, length($filename)-length($fileindex)).$fileindex;
+				$readPath = 'miRge.'.$tStamp.'.graphs/'.$filename.'.readDistribution.png';
+			}
+		};		
+		open $fh, ">", $readPath;
 		print $fh $graph->plot([[0..$lengthMax],$graphData])->png;
 		close $fh;
 		
@@ -573,7 +584,20 @@ sub generateGraphs {
 			    show_values => 1);		
 		$graphData = [['miRNA','mRNA','other ncRNA','hairpin','unaligned'],
 		[$$logHash{'quantStats'}[$i]{'mirnaReads'}/$$logHash{'quantStats'}[$i]{'trimmedReads'},$$logHash{'quantStats'}[$i]{'mrnaReads'}/$$logHash{'quantStats'}[$i]{'trimmedReads'},$$logHash{'quantStats'}[$i]{'ornaReads'}/$$logHash{'quantStats'}[$i]{'trimmedReads'},$$logHash{'quantStats'}[$i]{'hairpinReads'}/$$logHash{'quantStats'}[$i]{'trimmedReads'},$$logHash{'quantStats'}[$i]{'remReads'}/$$logHash{'quantStats'}[$i]{'trimmedReads'}]];
-		open $fh, ">", 'miRge.'.$tStamp.'.graphs/'.$filename.'.readAlignments.png';
+		
+		my $alignPath = 'miRge.'.$tStamp.'.graphs/'.$filename.'.readAlignments.png';
+		if(-e $alignPath){
+			my $fileindex = 1;
+			$filename = $filename."_".$fileindex;
+			$alignPath = 'miRge.'.$tStamp.'.graphs/'.$filename.'.readDistribution.png';
+			while(-e $alignPath){
+				$fileindex = $fileindex + 1;
+				$filename = substr($filename, 0, length($filename)-length($fileindex)).$fileindex;
+				$alignPath = 'miRge.'.$tStamp.'.graphs/'.$filename.'.readDistribution.png';
+			}
+		};	
+
+		open $fh, ">", $alignPath;
 		print $fh $graph->plot($graphData)->png;
 		close $fh;
 	}
