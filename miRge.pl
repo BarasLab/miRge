@@ -558,7 +558,8 @@ sub generateGraphs {
 			    y_tick_number => 10,
 			    borderclrs => undef,
 			    dclrs => ['blue']);
-		open $fh, ">", 'miRge.'.$tStamp.'.graphs/'.$sampleFiles[$i].'.readDistribution.png';
+		my $filename = fileparse($sampleFiles[$i]);
+		open $fh, ">", 'miRge.'.$tStamp.'.graphs/'.$filename.'.readDistribution.png';
 		print $fh $graph->plot([[0..$lengthMax],$graphData])->png;
 		close $fh;
 		
@@ -572,7 +573,7 @@ sub generateGraphs {
 			    show_values => 1);		
 		$graphData = [['miRNA','mRNA','other ncRNA','hairpin','unaligned'],
 		[$$logHash{'quantStats'}[$i]{'mirnaReads'}/$$logHash{'quantStats'}[$i]{'trimmedReads'},$$logHash{'quantStats'}[$i]{'mrnaReads'}/$$logHash{'quantStats'}[$i]{'trimmedReads'},$$logHash{'quantStats'}[$i]{'ornaReads'}/$$logHash{'quantStats'}[$i]{'trimmedReads'},$$logHash{'quantStats'}[$i]{'hairpinReads'}/$$logHash{'quantStats'}[$i]{'trimmedReads'},$$logHash{'quantStats'}[$i]{'remReads'}/$$logHash{'quantStats'}[$i]{'trimmedReads'}]];
-		open $fh, ">", 'miRge.'.$tStamp.'.graphs/'.$sampleFiles[$i].'.readAlignments.png';
+		open $fh, ">", 'miRge.'.$tStamp.'.graphs/'.$filename.'.readAlignments.png';
 		print $fh $graph->plot($graphData)->png;
 		close $fh;
 	}
