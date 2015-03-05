@@ -129,10 +129,8 @@ def main():
     gzipped = False
     if outext == '.gz':
         gzipped = True
-        logfile = outfile
         outfile, outext = os.path.splitext(outfile)
-    else:
-        logfile = args.infile.name
+    logfile = args.infile.name
 
     # Since we don't know the file sizes from the beginning and it'd be wasteful
     # to read it twice, split it to x reads per file and process as such
@@ -149,7 +147,6 @@ def main():
         worker.start()
 
     o = None
-    open_func = gzip.open if gzipped else open
     files = []
     tmpfiles = []
     if threads == 1:
@@ -166,10 +163,10 @@ def main():
                     o.close()
                     read_queue.put(o.name)
                     tmpfiles.append(o.name)
-                filename = '{0}_{1}{2}{3}'.format(outfile, str(index/chunksize), outext, '.gz' if gzipped else '')
+                filename = '{0}_{1}{2}'.format(outfile, str(index/chunksize), outext)
                 fbase, fext = os.path.splitext(filename)
                 files.append('{0}.trim{1}'.format(fbase, fext))
-                o = open_func(filename, 'wb')
+                o = open(filename, 'wb')
             if index < 1000 and phred == 33:
                 if any([i for i in reads[3] if ord(i) > 74]):
                     phred = 64

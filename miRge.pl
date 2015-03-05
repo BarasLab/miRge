@@ -58,7 +58,7 @@ for (my $i=0; $i<(@sampleFiles); $i++) {
 	unless(-e $sampleFiles[$i]) {
 		die "$sampleFiles[$i] cannot be found, please check the paths of the sample files.";
 	}
-	$sampleFiles[$i] =~ m/\/([^\/]+$)/;
+	$sampleFiles[$i] =~ m/\/?([^\/]+$)/;
 	$sampleFileNames[$i] = $1;
 }
 
@@ -532,6 +532,27 @@ sub filter {
 	}
 }
 
+sub getValidFilename {
+	my $fileIndex = shift;
+	my $filename = shift;
+	my $proposedPath = shift;
+	my $fileKey = $fileIndex.$filename;
+	if(defined($$graphHash{$fileKey})){
+		return $$graphHash{$fileKey};
+	};
+	if(-e File::Spec->catdir($proposedPath, $filename)){
+		my $fileindex = 1;
+		$filename = $filename."_".$fileindex;
+		while(-e File::Spec->catdir($proposedPath, $filename)){
+			$fileindex = $fileindex + 1;
+			$filename = substr($filename, 0, length($filename)-length($fileindex)).$fileindex;
+		}
+	};
+	my $finalPath = File::Spec->catdir($proposedPath, $filename);
+	$$graphHash{$fileKey} = $finalPath;
+	return $finalPath;
+}
+
 sub generateGraphs {
 	my $lengthKey;
 	my $graph;
@@ -561,7 +582,9 @@ sub generateGraphs {
 			    y_tick_number => 10,
 			    borderclrs => undef,
 			    dclrs => ['blue']);
-		open $fh, ">", $outputPath.'/graphs/'.$sampleFileNames[$i].'.readDistribution.png';
+		my $readPathName = $sampleFileNames[$i].'.readDistribution.png';
+		my $readPath = getValidFilename($i, $readPathName, File::Spec->catdir($outputPath,'graphs'));
+		open $fh, ">", $readPath;
 		print $fh $graph->plot([[0..$lengthMax],$graphData])->png;
 		close $fh;
 
@@ -571,10 +594,12 @@ sub generateGraphs {
 			    y_label_position => 0.5,
 			    borderclrs => undef,
 			    dclrs => ['blue'],
-			    show_values => 1);		
+			    show_values => 1);
 		$graphData = [['miRNA','mRNA','other ncRNA','hairpin','unaligned'],
 		[$$logHash{'quantStats'}[$i]{'mirnaReads'}/$$logHash{'quantStats'}[$i]{'trimmedReads'},$$logHash{'quantStats'}[$i]{'mrnaReads'}/$$logHash{'quantStats'}[$i]{'trimmedReads'},$$logHash{'quantStats'}[$i]{'ornaReads'}/$$logHash{'quantStats'}[$i]{'trimmedReads'},$$logHash{'quantStats'}[$i]{'hairpinReads'}/$$logHash{'quantStats'}[$i]{'trimmedReads'},$$logHash{'quantStats'}[$i]{'remReads'}/$$logHash{'quantStats'}[$i]{'trimmedReads'}]];
-		open $fh, ">", $outputPath.'/graphs/'.$sampleFileNames[$i].'.readAlignments.png';
+		my $alignPathName = $sampleFileNames[$i].'.readAlignments.png';
+		my $alignPath = getValidFilename($i, $alignPathName, File::Spec->catdir($outputPath,'graphs'));
+		open $fh, ">", $alignPath;
 		print $fh $graph->plot($graphData)->png;
 		close $fh;
 	}
@@ -591,16 +616,20 @@ sub writeHtmlReport {
 	$quantTable->setWidth(1000);
 	$quantTable->addRow(('filename','totalReads','trimmedReads<br>(unique)','mirnaReads / filtered<br>(unique)','hairpinReads','ornaReads','mrnaReads','remReads','composition'));
 	for ($i=0; $i<scalar(@sampleFiles); $i++) {
+		my $readPathName = $sampleFileNames[$i].'.readDistribution.png';
+		my $readPath = getValidFilename($i, $readPathName, File::Spec->catdir($outputPath,'graphs'));
+		my $alignPathName = $sampleFileNames[$i].'.readAlignments.png';
+		my $alignPath = getValidFilename($i, $alignPathName, File::Spec->catdir($outputPath,'graphs'));
 		$quantTable->addRow(($$logHash{'quantStats'}[$i]{'filename'},
 				     $$logHash{'quantStats'}[$i]{'totalReads'},
 				     '<table><tr></tr><tr><td>'.$$logHash{'quantStats'}[$i]{'trimmedReads'}.'<br>('.$$logHash{'quantStats'}[$i]{'trimmedUniq'}.')</td>'.
-				     '<td class="thumbnail1"><img src="'.'graphs/'.$sampleFileNames[$i].'.readDistribution.png'.'" width="100px" height="50px"><span><img src="'.'graphs/'.$sampleFileNames[$i].'.readDistribution.png'.'"></span></td></tr></table>',
+				     '<td class="thumbnail1"><img src="../'.$readPath.'" width="100px" height="50px"><span><img src="../'.$readPath.'"></span></td></tr></table>',
 				     $$logHash{'quantStats'}[$i]{'mirnaReads'}.' / '.$$logHash{'quantStats'}[$i]{'mirnaReadsFiltered'}.'<br>('.$$logHash{'quantStats'}[$i]{'mirnaUniqFiltered'}.')',
 				     $$logHash{'quantStats'}[$i]{'hairpinReads'},
 				     $$logHash{'quantStats'}[$i]{'ornaReads'},
 				     $$logHash{'quantStats'}[$i]{'mrnaReads'},
 				     $$logHash{'quantStats'}[$i]{'remReads'},
-				     '<table><tr></tr><tr><td class="thumbnail2"><img src="'.'graphs/'.$sampleFileNames[$i].'.readAlignments.png'.'" width="100px" height="50px"><span><img src="'.'graphs/'.$sampleFileNames[$i].'.readAlignments.png'.'"></span></td></tr></table>'));
+				     '<table><tr></tr><tr><td class="thumbnail2"><img src="../'.$alignPath.'" width="100px" height="50px"><span><img src="../'.$alignPath.'"></span></td></tr></table>'));
 	}
 	
 	$annotTable->setClass('tableBlue');
