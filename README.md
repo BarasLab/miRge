@@ -1,6 +1,6 @@
 Official documentation for miRge can be found at our main website: 
 
-http://atlas.pathology.jhu.edu/baras/miRge/
+http://atlas.pathology.jhu.edu/baras/miRge.html
 
 # Installation
 
@@ -45,3 +45,5 @@ From within the directory miRge is installed in, run:
 `tar -zxvf miRge.seqLibs.tar.gz`
 
 ## User Manual
+
+http://atlas.pathology.jhu.edu/baras/miRge/miRge_help.html
