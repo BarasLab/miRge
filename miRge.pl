@@ -758,7 +758,7 @@ sub writeDataToCSV {
 			my @isomirOut = ($miRNA);
 			foreach my $sampleLane (keys %{sampleIsomirs}){
 				my $sampleEntropy = calcEntropy(\@{$sampleIsomirs{$sampleLane}});
-				my $topIsomir = max(\@{$sampleIsomirs{$sampleLane}});
+				my $topIsomir = max(@{$sampleIsomirs{$sampleLane}});
 				my $isomirSum = sumArray(\@{$sampleIsomirs{$sampleLane}});
 				push(@{$sampleIsomirs{$sampleLane}}, @{$samplemiRNAs}[$sampleLane]);
 				my $sampleEntropyWithmiRNA = calcEntropy(\@{$sampleIsomirs{$sampleLane}});
