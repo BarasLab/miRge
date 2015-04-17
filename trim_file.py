@@ -18,6 +18,8 @@ env['PATH'] = '{0}:{1}'.format(env['PATH'], cutPath)
 
 # parse trimmed reads
 trimParse = re.compile(r'Trimmed reads\:\s+(?P<trimmed>\d+)')
+qtrimParse = re.compile(r'Quality\-trimmed\:\s+(?P<trimmed>\d+)')
+tstrimParse = re.compile(r'Too short reads\:\s+(?P<trimmed>\d+)')
 processedParse = re.compile(r'Processed reads\:\s+(?P<processed>\d+)')
 
 class GenericIterator(object):
@@ -89,12 +91,16 @@ class Worker(Process):
         self.phred64 = False
         self.cutadapt = 'cutadapt' if cutadapt is None else cutadapt
         adapter_flag = '-a'
+        self.ion = False
         if adapter.startswith('+'):
             adapter_flag = '-u'
+            self.ion = True
         if adapter == 'none':
             adapter_command = ['--no-trim']
         else:
-            adapter_command = [adapter_flag, adapter, '--discard-untrimmed']
+            adapter_command = [adapter_flag, adapter]
+            if self.ion is False:
+                adapter_command.append('--discard-untrimmed')
         self.adapter_command = ' '.join(adapter_command)
 
     def run(self):
@@ -105,9 +111,19 @@ class Worker(Process):
                                   '64' if self.phred64 else '33',
                                   '-o', '{0}.trim{1}'.format(outfile, outext), filename], env=env, stdout=subprocess.PIPE)
             sout, serr = p.communicate()
-            matched = trimParse.search(sout)
+            matched_count = 0
+            if self.ion:
+                matched = qtrimParse.search(sout)
+                if matched:
+                    matched_count += int(matched.group('trimmed'))
+                matched = tstrimParse.search(sout)
+                if matched:
+                    matched_count += int(matched.group('trimmed'))
+            else:
+                matched = trimParse.search(sout)
+                matched_count = matched.group('trimmed')
             processed = processedParse.search(sout)
-            self.results.put({'trimmed': matched.group('trimmed'), 'processed': processed.group('processed')} if matched and processed else None)
+            self.results.put({'trimmed': matched_count, 'processed': processed.group('processed')} if matched_count and processed else None)
 
 
 
