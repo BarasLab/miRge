@@ -572,7 +572,7 @@ sub generateGraphs {
 		
 		$graph = GD::Graph::bars->new(600,300);
 		$countMax = max @{$graphData};
-		$graph->set(title => "$sampleFiles[$i] ($$logHash{'quantStats'}[$i]{'trimmedReads'} reads)",
+		$graph->set(title => "$sampleFiles[$i] (based on $$logHash{'quantStats'}[$i]{'trimmedReads'} reads)",
 			    x_label => 'Read Length',
 			    x_label_position => 0.5,
 			    x_label_skip => 5,
@@ -589,13 +589,16 @@ sub generateGraphs {
 		close $fh;
 
 		$graph = GD::Graph::hbars->new(600,300);
-		$graph->set(title => "$sampleFiles[$i] ($$logHash{'quantStats'}[$i]{'trimmedReads'} reads)",
+		$graph->set(title => "$sampleFiles[$i] (based on $$logHash{'quantStats'}[$i]{'trimmedReads'} reads)",
 			    y_label => 'Percentage',
 			    y_label_position => 0.5,
+				y_number_format => "%.2f",
+		#		y_number_format => "%.2f\n",
 			    borderclrs => undef,
 			    dclrs => ['blue'],
-			    show_values => 1);
-		$graphData = [['miRNA','mRNA','other ncRNA','hairpin','unaligned'],
+			    show_values => 1,
+				values_format => "%.3f");
+		$graphData = [['miRNA','mRNA','other ncRNA','miRNA hairpin','unaligned'],
 		[$$logHash{'quantStats'}[$i]{'mirnaReads'}/$$logHash{'quantStats'}[$i]{'trimmedReads'},$$logHash{'quantStats'}[$i]{'mrnaReads'}/$$logHash{'quantStats'}[$i]{'trimmedReads'},$$logHash{'quantStats'}[$i]{'ornaReads'}/$$logHash{'quantStats'}[$i]{'trimmedReads'},$$logHash{'quantStats'}[$i]{'hairpinReads'}/$$logHash{'quantStats'}[$i]{'trimmedReads'},$$logHash{'quantStats'}[$i]{'remReads'}/$$logHash{'quantStats'}[$i]{'trimmedReads'}]];
 		my $alignPathName = $sampleFileNames[$i].'.readAlignments.png';
 		my $alignPath = getValidFilename($i, $alignPathName, File::Spec->catdir($outputPath,'graphs'));
@@ -614,24 +617,37 @@ sub writeHtmlReport {
 	
 	$quantTable->setClass('tableBlue');
 	$quantTable->setWidth(1000);
-	$quantTable->addRow(('filename','totalReads','trimmedReads<br>(unique)','mirnaReads / filtered<br>(unique)','hairpinReads','ornaReads','mrnaReads','remReads','composition'));
+	$quantTable->addRow(('File name&#40;s&#41;','Total Input Reads','Trimmed Reads<br>(all / unique)','All miRNA Reads / Filtered miRNA Reads','Unique miRNAs','Hairpin Reads','Other Noncoding RNA Reads','mRNA Reads','Remaining Reads','Read Length and Composition Figures'));
 	for ($i=0; $i<scalar(@sampleFiles); $i++) {
 		my $readPathName = $sampleFileNames[$i].'.readDistribution.png';
 		my $readPath = getValidFilename($i, $readPathName, File::Spec->catdir($outputPath,'graphs'));
 		my $alignPathName = $sampleFileNames[$i].'.readAlignments.png';
 		my $alignPath = getValidFilename($i, $alignPathName, File::Spec->catdir($outputPath,'graphs'));
 		$quantTable->addRow(($$logHash{'quantStats'}[$i]{'filename'},
-				     $$logHash{'quantStats'}[$i]{'totalReads'},
-				     '<table><tr></tr><tr><td>'.$$logHash{'quantStats'}[$i]{'trimmedReads'}.'<br>('.$$logHash{'quantStats'}[$i]{'trimmedUniq'}.')</td>'.
-				     '<td class="thumbnail1"><img src="../'.$readPath.'" width="100px" height="50px"><span><img src="../'.$readPath.'"></span></td></tr></table>',
-				     $$logHash{'quantStats'}[$i]{'mirnaReads'}.' / '.$$logHash{'quantStats'}[$i]{'mirnaReadsFiltered'}.'<br>('.$$logHash{'quantStats'}[$i]{'mirnaUniqFiltered'}.')',
+					     $$logHash{'quantStats'}[$i]{'totalReads'},				 
+				     '<table><tr></tr><tr><td>'.$$logHash{'quantStats'}[$i]{'trimmedReads'}.'&nbsp;/&nbsp;'.$$logHash{'quantStats'}[$i]{'trimmedUniq'}.'</td>'.'</tr></table>',
+				     $$logHash{'quantStats'}[$i]{'mirnaReads'}.'&nbsp;/&nbsp;'.$$logHash{'quantStats'}[$i]{'mirnaReadsFiltered'},
+					 $$logHash{'quantStats'}[$i]{'mirnaUniqFiltered'},
 				     $$logHash{'quantStats'}[$i]{'hairpinReads'},
 				     $$logHash{'quantStats'}[$i]{'ornaReads'},
 				     $$logHash{'quantStats'}[$i]{'mrnaReads'},
 				     $$logHash{'quantStats'}[$i]{'remReads'},
-				     '<table><tr></tr><tr><td class="thumbnail2"><img src="../'.$alignPath.'" width="100px" height="50px"><span><img src="../'.$alignPath.'"></span></td></tr></table>'));
-	}
-	
+		#		     '<table><tr></tr><tr><td class="thumbnail1"><img src="../'.$readPath.'" width="100px" height="50px"><span><img src="../'.$readPath.'"></span></td><td class="thumbnail2"><img src="../'.$alignPath.'" width="100px" height="50px"><span><img src="../'.$alignPath.'"></span></td></tr></table>'));
+				     '<table><tr></tr><tr><td class="thumbnail1"><img src="../'.$readPath.'" width="100px" height="50px"><span><img src="../'.$readPath.'"></span></td><td class="thumbnail2"><img src="../'.$alignPath.'" width="100px" height="50px"><span><img src="../'.$alignPath.'"></span></td></tr></table>'));
+					 }
+					 
+		#$quantTable->addRow(($$logHash{'quantStats'}[$i]{'filename'},
+		#		     $$logHash{'quantStats'}[$i]{'totalReads'},
+		#		     '<table><tr></tr><tr><td>'.$$logHash{'quantStats'}[$i]{'trimmedReads'}.'<br>('.$$logHash{'quantStats'}[$i]{'trimmedUniq'}.')</td>'.
+		#		     '<td class="thumbnail1"><img src="'.$readPathGraph/.$readPathName.'" width="100px" height="50px"><span><img src="../'.$readPath.'"></span></td></tr></table>',
+		#		     $$logHash{'quantStats'}[$i]{'mirnaReads'}.' / '.$$logHash{'quantStats'}[$i]{'mirnaReadsFiltered'}.'<br>('.$$logHash{'quantStats'}[$i]{'mirnaUniqFiltered'}.')',
+		#		     $$logHash{'quantStats'}[$i]{'hairpinReads'},
+		#		     $$logHash{'quantStats'}[$i]{'ornaReads'},
+		#		     $$logHash{'quantStats'}[$i]{'mrnaReads'},
+		#		     $$logHash{'quantStats'}[$i]{'remReads'},
+		#		     '<table><tr></tr><tr><td class="thumbnail2"><img src="../'.$alignPath.'" width="100px" height="50px"><span><img src="../'.$alignPath.'"></span></td></tr></table>'));
+					 
+					 
 	$annotTable->setClass('tableBlue');
 	$annotTable->setWidth(600);
 	$annotTable->addRow(('Annotation-Round','# Unique Seqs','cpuTime(sec)'));
@@ -644,8 +660,8 @@ sub writeHtmlReport {
 	
 	open $fh, ">", $filename;
 	print $fh htmlHeader();
-	print $fh "<h1>miRge</h1>\n<h2>sample results</h2>\n";
-	print $fh $quantTable, "\n<br>\n<h2>annotation summary of unique sequences from sample set</h2>\n";
+	print $fh "<h1>miRge Results</h1>\n<h2>Sample Result(s)</h2>\n";
+	print $fh $quantTable, "\n<br>\n<h2>Annotation summary of unique sequences from sample set and processing time.</h2>\n";
 	print $fh $annotTable, "\n</body>\n</html>\n";
 	close $fh;
 }
@@ -970,7 +986,7 @@ sub htmlHeader() {
 	visibility: visible; 
 	z-index: 1;
 	top: 0px;
-	left: 120px;
+	left: -625px;
 }
 
 .thumbnail2  {
@@ -995,7 +1011,7 @@ sub htmlHeader() {
 	left: -625px;
 }
 
-h1 { font: bold 2.0em Arial; color: #003f7f; text-shadow: 0 0 0.1em #a0a0a0, 0 0 0.1em #a0a0a0}
+h1 { font: bold 2.0em Arial; color: #003f7f; text-shadow: 0 0 0.1em #a0a0a0, 0 0 0.1em #a0a0a0; text-align: center}
 h2 { font: bold 1.5em Arial; color: #005fbf}
 
 </style>
