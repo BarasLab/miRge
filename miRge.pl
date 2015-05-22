@@ -769,10 +769,10 @@ sub writeDataToCSV {
 				push(@entry, @sampleArray);
 				push(@entry, $entropy);
 				push(@entry, "\n");
-				print $fh join(', ', @entry);
+				print $fh join(',', @entry);
 			}
 			my @isomirOut = ($miRNA);
-			foreach my $sampleLane (keys %{sampleIsomirs}){
+			for (my $sampleLane=0;$sampleLane<scalar(@sampleFiles);$sampleLane++) {
 				my $sampleEntropy = calcEntropy(\@{$sampleIsomirs{$sampleLane}});
 				my $topIsomir = max(@{$sampleIsomirs{$sampleLane}});
 				my $isomirSum = sumArray(\@{$sampleIsomirs{$sampleLane}});
@@ -793,7 +793,7 @@ sub writeDataToCSV {
 				push(@isomirOut, $topIsomir);
 			}
 			push(@isomirOut, "\n");
-			print $sh join(', ', @isomirOut);
+			print $sh join(',', @isomirOut);
 		}
 		close $fh;
 		close $sh;
