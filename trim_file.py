@@ -121,7 +121,10 @@ class Worker(Process):
                     matched_count += int(matched.group('trimmed'))
             else:
                 matched = trimParse.search(sout)
-                matched_count = matched.group('trimmed')
+                if matched:
+                    matched_count = matched.group('trimmed')
+                else:
+                    matched_count = 0
             processed = processedParse.search(sout)
             self.results.put({'trimmed': matched_count, 'processed': processed.group('processed')} if matched_count and processed else None)
 
