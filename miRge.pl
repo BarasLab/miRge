@@ -707,6 +707,10 @@ sub writeDataToCSV {
 				$key = $mirna;
 				$key2 = 'mirnas';
 			}
+			# get rid of the SNP annotation for isoMIRs
+			if ($key =~ /(.+?)\.SNP/){
+				$key = $1;
+			}
 			unless(exists $isomirHash{$key}){
 				$isomirHash{$key} = {};
 				$isomirHash{$key}{'mirnas'} = ();
