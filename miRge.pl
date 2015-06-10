@@ -770,6 +770,8 @@ sub writeDataToCSV {
 					push(@{$sampleIsomirs{$i}}, $sampleArray[$i]);
 				}
 				my $entropy = calcEntropy(\@sampleArray);
+				my $maxEntropy = log(scalar(@sampleArray))/log(2);
+				$entropy = $entropy/$maxEntropy;
 				push(@entry, @sampleArray);
 				push(@entry, $entropy);
 				push(@entry, "\n");
