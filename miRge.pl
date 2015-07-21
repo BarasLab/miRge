@@ -51,7 +51,7 @@ my $phred64 = '';
 my $isomirDiff = '';
 my $versionAsk = '';
 
-GetOptions($settings,('help' => \$help,'version' => \$versionAsk,'adapter=s','species=s','CPU=s','SampleFiles=s','isomirCutoff=s', 'bowtie=s','cutadapt=s', 'phred64' => \$phred64, 'diff-isomirs' => \$isomirDiff));
+GetOptions($settings,('help' => \$help,'version' => \$versionAsk,'adapter=s','species=s','CPU=s','SampleFiles=s','isomirCutoff=s', 'bowtie=s', 'phred64' => \$phred64, 'diff-isomirs' => \$isomirDiff));
 
 @sampleFiles = split(',', $$settings{'SampleFiles'});
 for (my $i=0; $i<(@sampleFiles); $i++) {
@@ -73,7 +73,6 @@ elsif($adapter eq 'ion'){
 my $speciesType = $$settings{species}||"none";
 my $isomirCutoff = $$settings{isomirCutoff}||0.9;
 my $numCPU = $$settings{CPU}||1;
-my $cutAdaptBinary = $$settings{cutadapt}||"cutadapt";
 my $bowtieBinary = $$settings{bowtie}||"bowtie";
 my $bwtIndexDir = File::Spec->catdir($refPath,$speciesType);
 
@@ -254,7 +253,7 @@ sub trimRaw {
 	my $fh;
 	
 	$$logHash{'quantStats'}[$sampleIndex]{'cpuTime-trim'} = time;
-	my $command = "--adapter=$adapter --cutadapt=$cutAdaptBinary --threads=$numCPU --infile=$infile --outfile=$outfile";
+	my $command = "--adapter=$adapter --threads=$numCPU --infile=$infile --outfile=$outfile";
 	my $phred64 = `python $trimBinary $command` == 64;
 	$$logHash{'quantStats'}[$sampleIndex]{'cpuTime-trim'} = getTimeDelta($$logHash{'quantStats'}[$sampleIndex]{'cpuTime-trim'}, time);
 	
@@ -1030,7 +1029,7 @@ __END__
 
 =head1 SYNOPSIS
 
-perl miRge.pl [--help] [--version] [--cutadapt none|illumina|ion|sequence] [--species human|mouse|custom_name] [--CPU #] --SampleFiles sample1.fastq,sample2.fastq,...
+perl miRge.pl [--help] [--version] [--adapter none|illumina|ion|sequence] [--species human|mouse|custom_name] [--CPU #] --SampleFiles sample1.fastq,sample2.fastq,...
 
 Examples:
 
@@ -1109,9 +1108,6 @@ miRge.pl takes the following arguments:
 
 						The path to the system's bowtie binary
 						
-=item --cutadapt                                  
-
-						The path to the cutadapt binary
 
 =back
 
