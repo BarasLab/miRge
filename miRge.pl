@@ -785,6 +785,14 @@ sub writeDataToCSV {
 				my $sampleEntropyWithmiRNA = calcEntropy(\@{$sampleIsomirs{$sampleLane}});
 				my $miRNARPM = $$samplemiRNAs[$sampleLane];
 
+	                        my $maxEntropy = scalar(@{$sampleIsomirs{$sampleLane}});
+         	                if($maxEntropy>1){
+                 	               $sampleEntropyWithmiRNA = $sampleEntropyWithmiRNA/(log($maxEntropy)/log(2));
+	                        }
+        	                else{
+                	               $sampleEntropyWithmiRNA = "NA";
+	                        }
+
 				push(@isomirOut, $sampleEntropyWithmiRNA);
 
 				my $combined = $miRNARPM + $isomirSum;
