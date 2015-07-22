@@ -4,9 +4,8 @@ from multiprocessing import Process, Queue
 from cutadapt.adapters import Adapter, gather_adapters
 from cutadapt.scripts.cutadapt import AdapterCutter
 from cutadapt.modifiers import QualityTrimmer, UnconditionalCutter
-from cutadapt.seqio import Sequence, FastqReader
+from cutadapt.seqio import FastqReader
 from cStringIO import StringIO
-#from profilestats import profile
 
 class Worker(Process):
     def __init__(self, queue=None, results=None, adapter=None, phred64=False):
@@ -28,7 +27,6 @@ class Worker(Process):
             adapter_cutter = AdapterCutter(self.adapters)
             self.modifiers.append(adapter_cutter)
 
-    #@profile(print_stats=20, dump_stats=True)
     def run(self):
         # we can't use the sentinel iter(self.queue.get, None) because of some issue with Sequence classes
         results = self.results
@@ -57,7 +55,6 @@ class Writer(Process):
         self.trimmed = trimmed
         self.outfile = outfile
 
-    #@profile(print_stats=20, dump_stats=True)
     def run(self):
         get_func = self.queue.get
         reads = get_func()
@@ -65,7 +62,7 @@ class Writer(Process):
         kept = 0
         while reads is not None:
             for read in reads:
-                outfile.write(read)#read.write(outfile)
+                outfile.write(read)
                 kept += 1
             reads = get_func()
         self.trimmed.put(kept)
