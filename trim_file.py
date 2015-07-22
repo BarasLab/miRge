@@ -89,10 +89,12 @@ def main():
     trimmed_queue = Queue()
 
     workers = []
-    for i in xrange(threads):
-        worker = Worker(queue=read_queue, results=result_queue, phred64=phred==64, adapter=adapter)
-        workers.append(worker)
-        worker.start()
+
+    def start_workers():
+        for i in xrange(threads):
+            worker = Worker(queue=read_queue, results=result_queue, phred64=phred==64, adapter=adapter)
+            workers.append(worker)
+            worker.start()
 
     writer = Writer(queue=result_queue, trimmed=trimmed_queue, outfile=dest)
     writer.start()
@@ -100,9 +102,16 @@ def main():
     batch = []
     for index, read in enumerate(FastqReader(args.infile)):
         batch.append(read)
+        if index < 1000 and phred == 33:
+            if any([i for i in read.qualities if ord(i) > 74]):
+                phred = 64
         if index % 10000 == 0:
+            if not workers:
+                start_workers()
             read_queue.put(batch)
             batch = []
+    if not workers:
+        start_workers()
     read_queue.put(batch)
     processed = index+1
 
