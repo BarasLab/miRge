@@ -22,8 +22,8 @@ class Worker(Process):
         elif adapter == 'none':
             self.adapter = None
         else:
-            name, seq, where = gather_adapters([adapter], [], []).next()
-            self.adapters = [Adapter(seq, where, self.error_rate, name=name)]
+            for name,seq,where in gather_adapters(adapter.split(','), [], []):
+                self.adapters.append(Adapter(seq, where, self.error_rate, name=name))
             adapter_cutter = AdapterCutter(self.adapters)
             self.modifiers.append(adapter_cutter)
 
