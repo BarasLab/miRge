@@ -1,24 +1,12 @@
 import argparse
 import sys
-import gzip
-import subprocess
-import os
-import fileinput
-import time
-from collections import deque
 from multiprocessing import Process, Queue
-from distutils.spawn import find_executable
 from cutadapt.adapters import Adapter, gather_adapters
 from cutadapt.scripts.cutadapt import AdapterCutter
 from cutadapt.modifiers import QualityTrimmer, UnconditionalCutter
 from cutadapt.seqio import Sequence, FastqReader
 from cStringIO import StringIO
-
-# extend path to include the provided cutadapt
-trimPath, trimFile = os.path.split(os.path.realpath(__file__))
-cutPath = os.path.join(trimPath, 'miRge.seqUtils', 'cutadapt-1.7.1', 'bin')
-env = os.environ.copy()
-env['PATH'] = '{0}:{1}'.format(env['PATH'], cutPath)
+#from profilestats import profile
 
 class Worker(Process):
     def __init__(self, queue=None, results=None, adapter=None, phred64=False):
@@ -40,38 +28,47 @@ class Worker(Process):
             adapter_cutter = AdapterCutter(self.adapters)
             self.modifiers.append(adapter_cutter)
 
+    #@profile(print_stats=20, dump_stats=True)
     def run(self):
         # we can't use the sentinel iter(self.queue.get, None) because of some issue with Sequence classes
-        sequence = self.queue.get()
-        while sequence is not None:
-            read = sequence
-            sequence = self.queue.get()
-            for modifier in self.modifiers:
-                read = modifier(read)
-            if len(read.sequence) < self.min_length:
-                continue
-            self.results.put(read)
+        results = self.results
+        get_func = self.queue.get
+        reads = get_func()
+        modifiers = self.modifiers
+        min_length = self.min_length
+        while reads is not None:
+            result_batch = []
+            for read in reads:
+                for modifier in modifiers:
+                    read = modifier(read)
+                if len(read.sequence) >= min_length:
+                    io = StringIO()
+                    read.write(io)
+                    io.seek(0)
+                    result_batch.append(io.read())
+                    io.close()
+            results.put(result_batch)
+            reads = get_func()
 
 class Writer(Process):
-    def __init__(self, queue=None, outfile=None):
+    def __init__(self, queue=None, trimmed=None, outfile=None):
         super(Writer, self).__init__()
         self.queue = queue
+        self.trimmed = trimmed
         self.outfile = outfile
-        self.kept = 0
-        # we batch our writes to minimize disk seek
-        self.to_write = []
 
+    #@profile(print_stats=20, dump_stats=True)
     def run(self):
-        read = self.queue.get()
-        while read is not None:
-            self.to_write.append(read)
-            if len(self.to_write) > 100000:
-                [i.write(self.outfile) for i in self.to_write]
-                self.to_write = []
-            self.kept += 1
-            read = self.queue.get()
-        [i.write(self.outfile) for i in self.to_write]
-        self.queue.put(self.kept)
+        get_func = self.queue.get
+        reads = get_func()
+        outfile = self.outfile
+        kept = 0
+        while reads is not None:
+            for read in reads:
+                outfile.write(read)#read.write(outfile)
+                kept += 1
+            reads = get_func()
+        self.trimmed.put(kept)
 
 parser = argparse.ArgumentParser()
 parser.add_argument('--cutadapt', type=str)
@@ -92,6 +89,7 @@ def main():
 
     read_queue = Queue()
     result_queue = Queue()
+    trimmed_queue = Queue()
 
     workers = []
     for i in xrange(threads):
@@ -99,27 +97,37 @@ def main():
         workers.append(worker)
         worker.start()
 
-    writer = Writer(queue=result_queue, outfile=dest)
+    writer = Writer(queue=result_queue, trimmed=trimmed_queue, outfile=dest)
     writer.start()
 
+    batch = []
     for index, read in enumerate(FastqReader(args.infile)):
-        read_queue.put(read)
+        batch.append(read)
+        if index % 10000 == 0:
+            read_queue.put(batch)
+            batch = []
+    read_queue.put(batch)
     processed = index+1
 
     # poison pill to stop workers
     for i in xrange(threads):
         read_queue.put(None)
 
-    while any([i.is_alive() for i in workers]):
-        time.sleep(0.01)
+    for i in workers:
+        i.join()
 
-    # poison pill for results
+    # poison pill for writers
     result_queue.put(None)
 
-    while writer.is_alive():
-        time.sleep(0.01)
+    # wait for writing to finish
+    writer.join()
 
-    kept_reads = result_queue.get()
+    trimmed_queue.put(None)
+
+    dest.flush()
+    dest.close()
+
+    kept_reads = sum([i for i in iter(trimmed_queue.get, None)])
 
     with open('{0}.log'.format(logfile), 'wb') as o:
         o.write('Starting reads: {0}\n'.format(processed))
