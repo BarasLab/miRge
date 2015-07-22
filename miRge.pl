@@ -770,7 +770,12 @@ sub writeDataToCSV {
 				}
 				my $entropy = calcEntropy(\@sampleArray);
 				my $maxEntropy = log(scalar(@sampleArray))/log(2);
-				$entropy = $entropy/$maxEntropy;
+				if($maxEntropy == 0){
+					$entropy = "NA";
+				}
+				else{
+					$entropy = $entropy/$maxEntropy;
+				}
 				push(@entry, @sampleArray);
 				push(@entry, $entropy);
 				push(@entry, "\n");
