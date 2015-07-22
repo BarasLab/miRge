@@ -58,13 +58,13 @@ class Writer(Process):
     def run(self):
         get_func = self.queue.get
         reads = get_func()
-        outfile = self.outfile
-        kept = 0
-        while reads is not None:
-            for read in reads:
-                outfile.write(read)
-                kept += 1
-            reads = get_func()
+        with self.outfile as outfile:
+            kept = 0
+            while reads is not None:
+                for read in reads:
+                    outfile.write(read)
+                    kept += 1
+                reads = get_func()
         self.trimmed.put(kept)
 
 parser = argparse.ArgumentParser()
@@ -120,9 +120,6 @@ def main():
     writer.join()
 
     trimmed_queue.put(None)
-
-    dest.flush()
-    dest.close()
 
     kept_reads = sum([i for i in iter(trimmed_queue.get, None)])
 
