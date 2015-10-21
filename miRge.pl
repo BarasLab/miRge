@@ -142,7 +142,7 @@ sub calcEntropy{
 	my $sum = sumArray(\@arr);
 	my $entropy = 0;
 	for (my $i=0;$i<scalar(@arr);$i++){
-		if($arr[$i] > 0){
+		if($arr[$i] > 1){
 			my $freq = $arr[$i]/$sum;
 			$entropy = $entropy + -1*$freq*log($freq)/log(2);
 		}
@@ -722,7 +722,7 @@ sub writeDataToCSV {
 			for ($i=0;$i<scalar(@sampleFiles);$i++) {
 				my $readCount = $$seqHash{$seqKey}{'quant'}[$i] // 0;
 				push(@entry, $readCount);
-				push(@{$isomirHash{$key}{$key2}{$seqKey}}, 1000000*$readCount/$$logHash{'quantStats'}[$i]{'mirnaReadsFiltered'});
+				push(@{$isomirHash{$key}{$key2}{$seqKey}}, $readCount);
 			}
 			push(@entry, "\n");
 			print $fh join(', ', @entry);
@@ -776,6 +776,9 @@ sub writeDataToCSV {
 				else{
 					$entropy = $entropy/$maxEntropy;
 				}
+				for ($i=0;$i<scalar(@sampleArray);$i++) {
+					$sampleArray[$i] *= 1000000.0/$$logHash{'quantStats'}[$i]{'mirnaReadsFiltered'};
+				}
 				push(@entry, @sampleArray);
 				push(@entry, $entropy);
 				push(@entry, "\n");
@@ -783,12 +786,13 @@ sub writeDataToCSV {
 			}
 			my @isomirOut = ($miRNA);
 			for (my $sampleLane=0;$sampleLane<scalar(@sampleFiles);$sampleLane++) {
+				my $rpmFactor = 1000000.0/$$logHash{'quantStats'}[$sampleLane]{'mirnaReadsFiltered'};
 				my $sampleEntropy = calcEntropy(\@{$sampleIsomirs{$sampleLane}});
-				my $topIsomir = max(@{$sampleIsomirs{$sampleLane}});
-				my $isomirSum = sumArray(\@{$sampleIsomirs{$sampleLane}});
+				my $topIsomir = max(@{$sampleIsomirs{$sampleLane}})*$rpmFactor;
+				my $isomirSum = sumArray(\@{$sampleIsomirs{$sampleLane}})*$rpmFactor;
 				push(@{$sampleIsomirs{$sampleLane}}, @{$samplemiRNAs}[$sampleLane]);
 				my $sampleEntropyWithmiRNA = calcEntropy(\@{$sampleIsomirs{$sampleLane}});
-				my $miRNARPM = $$samplemiRNAs[$sampleLane];
+				my $miRNARPM = $$samplemiRNAs[$sampleLane]*$rpmFactor;
 
 	                        my $maxEntropy = scalar(@{$sampleIsomirs{$sampleLane}});
          	                if($maxEntropy>1){
