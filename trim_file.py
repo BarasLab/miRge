@@ -100,7 +100,7 @@ def main():
     writer.start()
 
     batch = []
-    for index, read in enumerate(FastqReader(args.infile)):
+    for index, read in enumerate(FastqReader(args.infile.name)):
         batch.append(read)
         if index < 1000 and phred == 33:
             if any([i for i in read.qualities if ord(i) > 74]):
