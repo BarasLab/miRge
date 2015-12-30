@@ -1,3 +1,4 @@
+from distutils.version import StrictVersion
 import argparse
 import sys
 from multiprocessing import Process, Queue
@@ -5,6 +6,10 @@ from cutadapt.adapters import Adapter, gather_adapters
 from cutadapt.scripts.cutadapt import AdapterCutter
 from cutadapt.modifiers import QualityTrimmer, UnconditionalCutter
 from cutadapt.seqio import FastqReader
+import cutadapt
+
+if StrictVersion(cutadapt.__version__) < StrictVersion('1.8.1'):
+    raise ImportError('miRge requires cutadapt >= version 1.8.1 to operate.')
 
 class Worker(Process):
     def __init__(self, queue=None, results=None, adapter=None, phred64=False):
@@ -39,7 +44,11 @@ class Worker(Process):
                 for modifier in modifiers:
                     read = modifier(read)
                 if len(read.sequence) >= min_length:
-                    read_out = '\n'.join(['@', read.name, read.sequence, '+', read.name if read.twoheaders else '', read.qualities])+'\n'
+                    try:
+                        second_header = read.name2
+                    except AttributeError:
+                        second_header = read.name if getattr(read, 'twoheaders', False) else ''
+                    read_out = '\n'.join(['@', read.name, read.sequence, '+', second_header, read.qualities])+'\n'
                     result_batch.append(read_out)
             results.put(result_batch)
             reads = get_func()
