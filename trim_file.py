@@ -48,7 +48,10 @@ class Worker(Process):
                         second_header = read.name2
                     except AttributeError:
                         second_header = read.name if getattr(read, 'twoheaders', False) else ''
-                    read_out = '\n'.join(['@', read.name, read.sequence, '+', second_header, read.qualities])+'\n'
+                    if second_header:
+                        read_out = '\n'.join(['@', read.name, read.sequence, '+', second_header, read.qualities])+'\n'
+                    else:
+                        read_out = '\n'.join(['@', read.name, read.sequence, '+', read.qualities])+'\n'
                     result_batch.append(read_out)
             results.put(result_batch)
             reads = get_func()
