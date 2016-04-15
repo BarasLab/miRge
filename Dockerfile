@@ -1,4 +1,4 @@
-# miRge - miRge - a rational and efficient approach to miRNA-seq
+# miRge - a rational and efficient approach to miRNA-seq
 
 # base image from ubuntu
 FROM ubuntu
