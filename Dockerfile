@@ -40,5 +40,6 @@ RUN wget --quiet http://atlas.pathology.jhu.edu/baras/miRge/miRge.seqLibs.tar.gz
 	mv usr/local/miRge/* /opt/miRge/ && \
 	rm miRge.seqLibs.tar.gz
 	
+ENTRYPOINT ["perl", "/opt/miRge/miRge.pl"]
 
 
