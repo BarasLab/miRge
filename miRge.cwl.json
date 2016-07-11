@@ -1,0 +1,255 @@
+{
+  "id": "https://api.sbgenomics.com/v2/apps/mmattioni/microrna/mirge/5/raw/",
+  "class": "CommandLineTool",
+  "label": "miRge",
+  "description": "miRge\n=====\n\nmiRge is a logical, ultrafast, small RNA-seq solution to process samples in a highly multiplexed fashion, resulting in dramatically decreased computational requirements when processing sets of samples in a single run. It utilizes a unique sequential alignment algorithm for annotation of small RNA-seq data. Output is given for miRNAs as raw reads and reads per million (RPM) in addition to isomiR data and reads for all other RNA species (tRNA, rRNA, snoRNA, mRNA). IsomiR entropy can be determined for each sample or across samples in a multiplex run. In head-to-head comparisons for single sample analyses with miRExpress 2.0, sRNAbench, omiRAs and miRDeep2, miRge was 3 to 28-fold faster and always aligned more miRNA reads per sample. In a single multiplex experiment, we fully annotated all RNA species in 100 separate samples in 40 minutes. These features make miRge an ideal tool for high-throughput users. miRge is multithreaded to take advantage multicore computer architectures.",
+  "requirements": [
+    {
+      "class": "ExpressionEngineRequirement",
+      "requirements": [
+        {
+          "class": "DockerRequirement",
+          "dockerPull": "rabix/js-engine"
+        }
+      ],
+      "id": "#cwl-js-engine"
+    }
+  ],
+  "inputs": [
+    {
+      "id": "#samples_reads",
+      "type": [
+        {
+          "items": "File",
+          "type": "array",
+          "name": "samples_reads"
+        }
+      ],
+      "sbg:stageInput": null,
+      "inputBinding": {
+        "separate": true,
+        "prefix": "--SampleFiles",
+        "position": 0,
+        "sbg:cmdInclude": true,
+        "itemSeparator": ","
+      }
+    },
+    {
+      "id": "#species",
+      "sbg:toolDefaultValue": "human",
+      "type": [
+        {
+          "type": "enum",
+          "symbols": [
+            "human",
+            "mouse"
+          ],
+          "name": "species"
+        }
+      ],
+      "sbg:stageInput": null,
+      "inputBinding": {
+        "separate": true,
+        "prefix": "--species",
+        "position": 1,
+        "sbg:cmdInclude": true
+      }
+    },
+    {
+      "label": "The accepted value are one of the following: \"none\", \"illumina\", \"ion\", \"<sequence>\"",
+      "sbg:stageInput": null,
+      "type": [
+        "null",
+        "string"
+      ],
+      "description": "Run adapter removal and quality filtering via cutadapt.                                                             default: none                                                             illumina: TGGAATTCTCGGGTGCCAAGGAACTCCAG (TruSeq small RNA kit)                                                             ion: remove first 11 base pairs (as per miRQC protocol)                                                             sequence: Provide your own adapter sequence, such as --adapter TGGAATTCTC",
+      "id": "#adapter",
+      "inputBinding": {
+        "separate": true,
+        "prefix": "--adapter",
+        "position": 3,
+        "sbg:cmdInclude": true
+      }
+    }
+  ],
+  "outputs": [
+    {
+      "fileTypes": "html",
+      "type": [
+        "File"
+      ],
+      "outputBinding": {
+        "glob": "miRge.*/report.html"
+      },
+      "description": "HTML report",
+      "id": "#report",
+      "label": "report"
+    },
+    {
+      "outputBinding": {
+        "glob": "miRge.*/mapped.csv"
+      },
+      "type": [
+        "null",
+        "File"
+      ],
+      "id": "#mapped"
+    },
+    {
+      "outputBinding": {
+        "glob": "miRge.*/unmapped.csv"
+      },
+      "type": [
+        "null",
+        "File"
+      ],
+      "id": "#unmapped"
+    },
+    {
+      "outputBinding": {
+        "glob": "miRge.*/miR.Counts.csv"
+      },
+      "type": [
+        "null",
+        "File"
+      ],
+      "id": "#counts"
+    },
+    {
+      "outputBinding": {
+        "glob": "miRge.*/graphs/*.png"
+      },
+      "label": "graphs",
+      "id": "#graphs",
+      "type": [
+        "null",
+        {
+          "items": "File",
+          "type": "array",
+          "name": "graphs"
+        }
+      ]
+    }
+  ],
+  "hints": [
+    {
+      "class": "sbg:MemRequirement",
+      "value": 1000
+    },
+    {
+      "class": "DockerRequirement",
+      "dockerPull": "mattions/mirge:latest",
+      "dockerImageId": ""
+    },
+    {
+      "class": "sbg:CPURequirement",
+      "value": 0
+    }
+  ],
+  "baseCommand": [
+    "perl",
+    "/opt/miRge/miRge.pl"
+  ],
+  "stdin": "",
+  "stdout": "",
+  "successCodes": [],
+  "temporaryFailCodes": [],
+  "arguments": [
+    {
+      "separate": true,
+      "prefix": "--CPU",
+      "valueFrom": {
+        "class": "Expression",
+        "engine": "#cwl-js-engine",
+        "script": "$job.allocatedResources.cpu"
+      }
+    }
+  ],
+  "sbg:revisionsInfo": [
+    {
+      "sbg:modifiedOn": 1460739675,
+      "sbg:revision": 0,
+      "sbg:modifiedBy": "mmattioni"
+    },
+    {
+      "sbg:modifiedOn": 1460798413,
+      "sbg:revision": 1,
+      "sbg:modifiedBy": "mmattioni"
+    },
+    {
+      "sbg:modifiedOn": 1460798590,
+      "sbg:revision": 2,
+      "sbg:modifiedBy": "mmattioni"
+    },
+    {
+      "sbg:modifiedOn": 1461924538,
+      "sbg:revision": 3,
+      "sbg:modifiedBy": "mmattioni"
+    },
+    {
+      "sbg:modifiedOn": 1461924819,
+      "sbg:revision": 4,
+      "sbg:modifiedBy": "mmattioni"
+    },
+    {
+      "sbg:modifiedOn": 1461941571,
+      "sbg:revision": 5,
+      "sbg:modifiedBy": "mmattioni"
+    }
+  ],
+  "sbg:latestRevision": 5,
+  "sbg:createdOn": 1460739675,
+  "sbg:toolkit": "miRge",
+  "sbg:license": "GNU General Public License v3.0 only",
+  "sbg:id": "mmattioni/microrna/mirge/5",
+  "sbg:modifiedBy": "mmattioni",
+  "sbg:toolAuthor": "Alex Baras, Marc Halushka, Chris Mitchell, Jason Myers",
+  "sbg:sbgMaintained": false,
+  "sbg:links": [
+    {
+      "label": "Github",
+      "id": "https://github.com/BarasLab/miRge"
+    },
+    {
+      "label": "Homepage",
+      "id": "http://atlas.pathology.jhu.edu/baras/miRge.html"
+    }
+  ],
+  "sbg:project": "mmattioni/microrna",
+  "sbg:modifiedOn": 1461941571,
+  "sbg:job": {
+    "inputs": {
+      "samples_reads": [
+        {
+          "class": "File",
+          "path": "/path/to/samples_reads-1.ext",
+          "size": 0,
+          "secondaryFiles": []
+        },
+        {
+          "class": "File",
+          "path": "/path/to/samples_reads-2.ext",
+          "size": 0,
+          "secondaryFiles": []
+        }
+      ],
+      "species": "human",
+      "adapter": "adapter-string-value"
+    },
+    "allocatedResources": {
+      "cpu": 0,
+      "mem": 1000
+    }
+  },
+  "sbg:cmdPreview": "perl /opt/miRge/miRge.pl --SampleFiles /path/to/samples_reads-1.ext,/path/to/samples_reads-2.ext --CPU 0 --species human",
+  "sbg:image_url": null,
+  "sbg:contributors": [
+    "mmattioni"
+  ],
+  "sbg:revision": 5,
+  "sbg:categories": [
+    "Alignment"
+  ],
+  "sbg:validationErrors": [],
+  "sbg:createdBy": "mmattioni"
+}
