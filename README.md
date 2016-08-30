@@ -20,13 +20,13 @@ All required libraries may be installed on a ubuntu variant with this command:
 
 ### Cutadapt:
 
-`pip install cutadapt or easy_install cutadapt`
+`pip install cutadapt==1.8.1 or easy_install cutadapt==1.8.1`
 
 OR if you lack root privs
 
-`pip install --user cutadapt or easy_install --user cutadapt`
+`pip install --user cutadapt==1.8.1 or easy_install --user cutadapt==1.8.1`
 
-Note: if you install it as a non-root user, you must ensure the install location is on your path, or specify the location of cutadapt with the --cutadapt argument. This is usually in ~/.local/bin/cutadapt, but may vary with your particular distribution.
+Note: if you install it as a non-root user, you must ensure the install location is on your path, or specify the location of cutadapt with the --cutadapt argument. This is usually in ~/.local/bin/cutadapt, but may vary with your particular distribution. **At this time, miRge has been tested with cutadapt versions 1.8.1 and 1.9.x, and is not compatible at this time with cutadapt 1.10.x.**
 
 ### Bowtie:
 
