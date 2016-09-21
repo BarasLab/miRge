@@ -36,7 +36,7 @@ my $miRgePath = abs_path($0);
 my $version = "2.0";
 local $ENV{PATH} = "$ENV{PATH}:".$miRgePath;
 $miRgePath =~ s/\/[^\/]+\.pl/\//;
-my $refPath = $miRgePath."miRge.seqLibs/";
+my $refPath = $miRgePath."usr/local/miRge/miRge.seqLibs/";
 my $trimBinary = File::Spec->catfile($miRgePath,"trim_file.py");
 
 if(not -d $refPath){
@@ -229,18 +229,24 @@ sub runQuantitationPipeline {
 	my $i;
 	
 	for ($i=0;$i<scalar(@sampleFiles);$i++) {
-		print "Processing $sampleFiles[$i] ";
+		print "Processing $sampleFiles[$i] \n";
 		$$logHash{'quantStats'}[$i]{'filename'} = $sampleFiles[$i];
 		$samplePrefix = $sampleFiles[$i];
 		$samplePrefix =~ s/\.fastq// ;
-		$cleanedReads = $samplePrefix.".trim.fastq";
-	
-		trimRaw($sampleFiles[$i], $cleanedReads, $i);
-		print "cpuTime-trim:$$logHash{'quantStats'}[$i]{'cpuTime-trim'}, ";
+		$samplePrefix =~ s/\.fq// ;
 
-		quantReads($cleanedReads, $i);
+		if($adapter ne "none") {
+			$cleanedReads = $samplePrefix.".trim.fastq";
+			trimRaw($sampleFiles[$i], $cleanedReads, $i);
+			print "cpuTime-trim:$$logHash{'quantStats'}[$i]{'cpuTime-trim'}, ";
+			quantReads($cleanedReads, $i);
+			system("rm $cleanedReads");
+		} else {
+			noTrim($sampleFiles[$i], $i);
+			quantReads($sampleFiles[$i], $i);
+		}
+	
 		print "cpuTime-uniq:$$logHash{'quantStats'}[$i]{'cpuTime-uniq'}\n";
-		system("rm $cleanedReads");
 		
 	}
 }
@@ -265,6 +271,24 @@ sub trimRaw {
 	$$logHash{'quantStats'}[$sampleIndex]{'totalReads'} = $1;
 	$fileText =~ m/Processed reads: (\d+)/;
 	$$logHash{'quantStats'}[$sampleIndex]{'trimmedReads'} = $1;
+}
+
+sub noTrim {
+	my $infile = $_[0];
+	my $sampleIndex = $_[1];
+	my $fh;
+	
+	print "Counting raw reads: $infile\n";
+
+	open($fh, "< $infile") or die "can't open $infile: $!";
+	my $lines = 0;
+	$lines++ while <$fh>;
+	close $fh;
+	my $ct = $lines / 4;
+	
+	$$logHash{'quantStats'}[$sampleIndex]{'cpuTime-trim'} = 0;
+	$$logHash{'quantStats'}[$sampleIndex]{'totalReads'} = $ct;
+	$$logHash{'quantStats'}[$sampleIndex]{'trimmedReads'} = $ct;
 }
 
 sub quantReads {
