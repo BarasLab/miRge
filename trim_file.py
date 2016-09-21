@@ -2,14 +2,26 @@ from distutils.version import StrictVersion
 import argparse
 import sys
 from multiprocessing import Process, Queue
-from cutadapt.adapters import Adapter, gather_adapters
 from cutadapt.scripts.cutadapt import AdapterCutter
 from cutadapt.modifiers import QualityTrimmer, UnconditionalCutter
 from cutadapt.seqio import FastqReader
 import cutadapt
 
-if StrictVersion(cutadapt.__version__) < StrictVersion('1.8.1'):
+cutadapt_version = StrictVersion(cutadapt.__version__)
+if cutadapt_version < StrictVersion('1.8.1'):
     raise ImportError('miRge requires cutadapt >= version 1.8.1 to operate.')
+elif cutadapt_version < StrictVersion('1.10.0'):
+    from cutadapt.adapters import Adapter, gather_adapters
+    def parse_adapters(adapter, error_rate=None):
+        adapters = []
+        for name,seq,where in gather_adapters(adapter.split(','), [], []):
+            adapters.append(Adapter(seq, where, error_rate, name=name))
+        return adapters
+else:
+    from cutadapt.adapters import AdapterParser
+    def parse_adapters(adapter, error_rate=None):
+        return AdapterParser(max_error_rate=error_rate).parse_multi(adapter.split(','), [], [])
+
 
 class Worker(Process):
     def __init__(self, queue=None, results=None, adapter=None, phred64=False):
@@ -26,8 +38,7 @@ class Worker(Process):
         elif adapter == 'none':
             self.adapter = None
         else:
-            for name,seq,where in gather_adapters(adapter.split(','), [], []):
-                self.adapters.append(Adapter(seq, where, self.error_rate, name=name))
+            self.adapters = parse_adapters(adapter, error_rate=self.error_rate)
             adapter_cutter = AdapterCutter(self.adapters)
             self.modifiers.append(adapter_cutter)
 
