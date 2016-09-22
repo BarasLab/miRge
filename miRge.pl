@@ -50,8 +50,9 @@ my @sampleFileNames;
 my $phred64 = '';
 my $isomirDiff = '';
 my $versionAsk = '';
+my $skipClipFilter = '';
 
-GetOptions($settings,('help' => \$help,'version' => \$versionAsk,'adapter=s','species=s','CPU=s','SampleFiles=s','isomirCutoff=s', 'bowtie=s', 'phred64' => \$phred64, 'diff-isomirs' => \$isomirDiff));
+GetOptions($settings,('help' => \$help,'version' => \$versionAsk,'adapter=s','species=s','CPU=s','SampleFiles=s','isomirCutoff=s', 'bowtie=s', 'phred64' => \$phred64, 'diff-isomirs' => \$isomirDiff, 'skipClipFilter' => \$skipClipFilter));
 
 @sampleFiles = split(',', $$settings{'SampleFiles'});
 for (my $i=0; $i<(@sampleFiles); $i++) {
@@ -229,18 +230,24 @@ sub runQuantitationPipeline {
 	my $i;
 	
 	for ($i=0;$i<scalar(@sampleFiles);$i++) {
-		print "Processing $sampleFiles[$i] ";
+		print "Processing $sampleFiles[$i] \n";
 		$$logHash{'quantStats'}[$i]{'filename'} = $sampleFiles[$i];
 		$samplePrefix = $sampleFiles[$i];
 		$samplePrefix =~ s/\.fastq// ;
-		$cleanedReads = $samplePrefix.".trim.fastq";
-	
-		trimRaw($sampleFiles[$i], $cleanedReads, $i);
-		print "cpuTime-trim:$$logHash{'quantStats'}[$i]{'cpuTime-trim'}, ";
+		$samplePrefix =~ s/\.fq// ;
 
-		quantReads($cleanedReads, $i);
+		if($skipClipFilter) {
+			noTrim($sampleFiles[$i], $i);
+			quantReads($sampleFiles[$i], $i);
+		} else {
+			$cleanedReads = $samplePrefix.".trim.fastq";
+			trimRaw($sampleFiles[$i], $cleanedReads, $i);
+			print "cpuTime-trim:$$logHash{'quantStats'}[$i]{'cpuTime-trim'}, ";
+			quantReads($cleanedReads, $i);
+			system("rm $cleanedReads");
+		}
+	
 		print "cpuTime-uniq:$$logHash{'quantStats'}[$i]{'cpuTime-uniq'}\n";
-		system("rm $cleanedReads");
 		
 	}
 }
@@ -265,6 +272,28 @@ sub trimRaw {
 	$$logHash{'quantStats'}[$sampleIndex]{'totalReads'} = $1;
 	$fileText =~ m/Processed reads: (\d+)/;
 	$$logHash{'quantStats'}[$sampleIndex]{'trimmedReads'} = $1;
+}
+
+sub noTrim {
+	my $infile = $_[0];
+	my $outfile = $_[1];
+	my $sampleIndex = $_[2];
+	my $fh;
+	
+	my $command = "--adapter=$adapter --threads=$numCPU --infile=$infile --outfile=$outfile --skipClipFilter";
+	my $phred64 = `python $trimBinary $command` == 64;
+
+	print "Counting raw reads: $infile\n";
+
+	open($fh, "< $infile") or die "can't open $infile: $!";
+	my $lines = 0;
+	$lines++ while <$fh>;
+	close $fh;
+	my $ct = $lines / 4;
+	
+	$$logHash{'quantStats'}[$sampleIndex]{'cpuTime-trim'} = 0;
+	$$logHash{'quantStats'}[$sampleIndex]{'totalReads'} = $ct;
+	$$logHash{'quantStats'}[$sampleIndex]{'trimmedReads'} = $ct;
 }
 
 sub quantReads {
@@ -1046,7 +1075,7 @@ __END__
 
 =head1 SYNOPSIS
 
-perl miRge.pl [--help] [--version] [--adapter none|illumina|ion|sequence] [--species human|mouse|custom_name] [--CPU #] --SampleFiles sample1.fastq,sample2.fastq,...
+perl miRge.pl [--help] [--version] [--adapter none|illumina|ion|sequence] [--species human|mouse|custom_name] [--skipClipFilter] [--CPU #] --SampleFiles sample1.fastq,sample2.fastq,...
 
 Examples:
 
@@ -1125,6 +1154,10 @@ miRge.pl takes the following arguments:
 
 						The path to the system's bowtie binary
 						
+=item --skipClipFilter
+
+						Skip adapter clipping and quality filtering if these steps have already been
+						performed externally
 
 =back
 
