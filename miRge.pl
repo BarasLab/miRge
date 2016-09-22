@@ -36,7 +36,7 @@ my $miRgePath = abs_path($0);
 my $version = "2.0";
 local $ENV{PATH} = "$ENV{PATH}:".$miRgePath;
 $miRgePath =~ s/\/[^\/]+\.pl/\//;
-my $refPath = $miRgePath."usr/local/miRge/miRge.seqLibs/";
+my $refPath = $miRgePath."miRge.seqLibs/";
 my $trimBinary = File::Spec->catfile($miRgePath,"trim_file.py");
 
 if(not -d $refPath){
@@ -50,8 +50,9 @@ my @sampleFileNames;
 my $phred64 = '';
 my $isomirDiff = '';
 my $versionAsk = '';
+my $skipClipFilter = '';
 
-GetOptions($settings,('help' => \$help,'version' => \$versionAsk,'adapter=s','species=s','CPU=s','SampleFiles=s','isomirCutoff=s', 'bowtie=s', 'phred64' => \$phred64, 'diff-isomirs' => \$isomirDiff));
+GetOptions($settings,('help' => \$help,'version' => \$versionAsk,'adapter=s','species=s','CPU=s','SampleFiles=s','isomirCutoff=s', 'bowtie=s', 'phred64' => \$phred64, 'diff-isomirs' => \$isomirDiff, 'skipClipFilter' => \$skipClipFilter));
 
 @sampleFiles = split(',', $$settings{'SampleFiles'});
 for (my $i=0; $i<(@sampleFiles); $i++) {
@@ -235,15 +236,15 @@ sub runQuantitationPipeline {
 		$samplePrefix =~ s/\.fastq// ;
 		$samplePrefix =~ s/\.fq// ;
 
-		if($adapter ne "none") {
+		if($skipClipFilter) {
+			noTrim($sampleFiles[$i], $i);
+			quantReads($sampleFiles[$i], $i);
+		} else {
 			$cleanedReads = $samplePrefix.".trim.fastq";
 			trimRaw($sampleFiles[$i], $cleanedReads, $i);
 			print "cpuTime-trim:$$logHash{'quantStats'}[$i]{'cpuTime-trim'}, ";
 			quantReads($cleanedReads, $i);
 			system("rm $cleanedReads");
-		} else {
-			noTrim($sampleFiles[$i], $i);
-			quantReads($sampleFiles[$i], $i);
 		}
 	
 		print "cpuTime-uniq:$$logHash{'quantStats'}[$i]{'cpuTime-uniq'}\n";
@@ -275,9 +276,13 @@ sub trimRaw {
 
 sub noTrim {
 	my $infile = $_[0];
-	my $sampleIndex = $_[1];
+	my $outfile = $_[1];
+	my $sampleIndex = $_[2];
 	my $fh;
 	
+	my $command = "--adapter=$adapter --threads=$numCPU --infile=$infile --outfile=$outfile --skipClipFilter";
+	my $phred64 = `python $trimBinary $command` == 64;
+
 	print "Counting raw reads: $infile\n";
 
 	open($fh, "< $infile") or die "can't open $infile: $!";
@@ -1070,7 +1075,7 @@ __END__
 
 =head1 SYNOPSIS
 
-perl miRge.pl [--help] [--version] [--adapter none|illumina|ion|sequence] [--species human|mouse|custom_name] [--CPU #] --SampleFiles sample1.fastq,sample2.fastq,...
+perl miRge.pl [--help] [--version] [--adapter none|illumina|ion|sequence] [--species human|mouse|custom_name] [--skipClipFilter] [--CPU #] --SampleFiles sample1.fastq,sample2.fastq,...
 
 Examples:
 
@@ -1149,6 +1154,10 @@ miRge.pl takes the following arguments:
 
 						The path to the system's bowtie binary
 						
+=item --skipClipFilter
+
+						Skip adapter clipping and quality filtering if these steps have already been
+						performed externally
 
 =back
 

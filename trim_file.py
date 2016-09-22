@@ -93,6 +93,7 @@ parser.add_argument('--infile', type=argparse.FileType('rb'))
 parser.add_argument('--outfile', type=argparse.FileType('wb'))
 parser.add_argument('--threads', type=int, default=1)
 parser.add_argument('--phred64', action='store_true')
+parser.add_argument('--skipClipFilter', action='store_true')
 
 def main():
     args = parser.parse_args()
@@ -100,7 +101,7 @@ def main():
     phred = args.phred64 or 33
     threads = args.threads
     logfile = args.infile.name
-
+    skipClipFilter = args.skipClipFilter
     adapter = args.adapter
 
     read_queue = Queue()
@@ -115,10 +116,20 @@ def main():
             workers.append(worker)
             worker.start()
 
+    if skipClipFilter:
+        for index , read in enumerate(FastqReader(args.infile.name)):
+            if index < 1000 and phred == 33:
+                if any([i for i in read.qualities if ord(i) > 74]):
+                    phred = 64
+            else:
+                return phred
+        return phred
+
     writer = Writer(queue=result_queue, trimmed=trimmed_queue, outfile=dest)
     writer.start()
 
     batch = []
+
     for index, read in enumerate(FastqReader(args.infile.name)):
         batch.append(read)
         if index < 1000 and phred == 33:
