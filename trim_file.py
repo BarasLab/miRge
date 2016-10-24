@@ -91,6 +91,7 @@ parser.add_argument('--cutadapt', type=str)
 parser.add_argument('--adapter', type=str)
 parser.add_argument('--infile', type=argparse.FileType('rb'))
 parser.add_argument('--outfile', type=argparse.FileType('wb'))
+parser.add_argument('--logfile', type=argparse.FileType('wb'))
 parser.add_argument('--threads', type=int, default=1)
 parser.add_argument('--phred64', action='store_true')
 
@@ -99,7 +100,7 @@ def main():
     dest = args.outfile
     phred = args.phred64 or 33
     threads = args.threads
-    logfile = args.infile.name
+    logfile = args.logfile
 
     adapter = args.adapter
 
@@ -151,7 +152,7 @@ def main():
 
     kept_reads = sum([i for i in iter(trimmed_queue.get, None)])
 
-    with open('{0}.log'.format(logfile), 'wb') as o:
+    with logfile as o:
         o.write('Starting reads: {0}\n'.format(processed))
         o.write('Processed reads: {0}\n'.format(kept_reads))
 
