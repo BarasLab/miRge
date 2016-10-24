@@ -16,6 +16,7 @@
 
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
+
 use strict;
 
 use Pod::Usage;
@@ -233,7 +234,7 @@ sub runQuantitationPipeline {
 		$$logHash{'quantStats'}[$i]{'filename'} = $sampleFiles[$i];
 		$samplePrefix = $sampleFiles[$i];
 		$samplePrefix =~ s/\.fastq// ;
-		$cleanedReads = $samplePrefix.".trim.fastq";
+		$cleanedReads = $outputPath."/".$samplePrefix.".trim.fastq";
 	
 		trimRaw($sampleFiles[$i], $cleanedReads, $i);
 		print "cpuTime-trim:$$logHash{'quantStats'}[$i]{'cpuTime-trim'}, ";
@@ -241,26 +242,26 @@ sub runQuantitationPipeline {
 		quantReads($cleanedReads, $i);
 		print "cpuTime-uniq:$$logHash{'quantStats'}[$i]{'cpuTime-uniq'}\n";
 		system("rm $cleanedReads");
-		
 	}
 }
 
 sub trimRaw {
 	my $infile = $_[0];
 	my $outfile = $_[1];
+	my $logfile = "$outputPath/$infile.log";
 	my $sampleIndex = $_[2];
 	my $fileText;
 	my $fh;
-	
+		
 	$$logHash{'quantStats'}[$sampleIndex]{'cpuTime-trim'} = time;
-	my $command = "--adapter=$adapter --threads=$numCPU --infile=$infile --outfile=$outfile";
+	my $command = "--adapter=$adapter --threads=$numCPU --infile=$infile --outfile=$outfile --logfile=$logfile";
 	my $phred64 = `python $trimBinary $command` == 64;
 	$$logHash{'quantStats'}[$sampleIndex]{'cpuTime-trim'} = getTimeDelta($$logHash{'quantStats'}[$sampleIndex]{'cpuTime-trim'}, time);
 	
-	open $fh, "<", "$infile.log";
+	open $fh, "<", "$logfile";
 	$fileText = join('',<$fh>);
 	close $fh;
-	system("rm $infile.log");
+	system("rm $logfile");
 	$fileText =~ m/Starting reads: (\d+)/;
 	$$logHash{'quantStats'}[$sampleIndex]{'totalReads'} = $1;
 	$fileText =~ m/Processed reads: (\d+)/;
@@ -309,11 +310,11 @@ sub runAnnotationPipeline {
 	}
 	
 	my $bwtCmdLines = [
-		"$bwtCmd $mirnaBWT -n 0 -f SeqToAnnot.fasta 1>SeqToAnnot.sam 2>SeqToAnnot.log",
-		"$bwtCmd $hairpinBWT -n 1 -f SeqToAnnot.fasta 1>SeqToAnnot.sam 2>SeqToAnnot.log",
-		"$bwtCmd $otherBWT -n 1 -f SeqToAnnot.fasta 1>SeqToAnnot.sam 2>SeqToAnnot.log",
-		"$bwtCmd $mrnaBWT -n 0 -f SeqToAnnot.fasta 1>SeqToAnnot.sam 2>SeqToAnnot.log",
-		"$bwtCmd $mirnaBWT -f -l 15 -5 1 -3 2 -n 2 SeqToAnnot.fasta 1>SeqToAnnot.sam 2>SeqToAnnot.log"
+		"$bwtCmd $mirnaBWT -n 0 -f $outputPath/SeqToAnnot.fasta 1>$outputPath/SeqToAnnot.sam 2>$outputPath/SeqToAnnot.log",
+		"$bwtCmd $hairpinBWT -n 1 -f $outputPath/SeqToAnnot.fasta 1>$outputPath/SeqToAnnot.sam 2>$outputPath/SeqToAnnot.log",
+		"$bwtCmd $otherBWT -n 1 -f $outputPath/SeqToAnnot.fasta 1>$outputPath/SeqToAnnot.sam 2>$outputPath/SeqToAnnot.log",
+		"$bwtCmd $mrnaBWT -n 0 -f $outputPath/SeqToAnnot.fasta 1>$outputPath/SeqToAnnot.sam 2>$outputPath/SeqToAnnot.log",
+		"$bwtCmd $mirnaBWT -l 15 -5 1 -3 2 -n 2 -f $outputPath/SeqToAnnot.fasta 1>$outputPath/SeqToAnnot.sam 2>$outputPath/SeqToAnnot.log"
 	]; 
 	# -- ALIGNMENT 1 -- length < 26, up to 0 mismatch to miRNA
 	# -- ALIGNMENT 2 -- length > 25, up to 1 mismatch to hairpin
@@ -322,7 +323,8 @@ sub runAnnotationPipeline {
 	# -- ALIGNMENT 5 -- any length, up to 2 mismatches with special 5 vs 3 prime considerations to miRNA
 	
 	for ($i=0; $i<5; $i++) {
-		writeSeqToAnnot($$lengthFilters[$i]); # write the records with no matches/annotations and within length criteria (0=none,<0=smaller,>0=greater) to a fasta file to be used by the alignment/matching cmd tools	
+		# write the records with no matches/annotations and within length criteria (0=none,<0=smaller,>0=greater) to a fasta file to be used by the alignment/matching cmd tools	
+		writeSeqToAnnot($$lengthFilters[$i]);
 		
 		# run alignment
 		print "Starting Annotation-$$annotNames[$i] ";
@@ -334,8 +336,8 @@ sub runAnnotationPipeline {
 
 		# parse alignment completed without error
 		if ($alignmentStatus==0) {
-			parseBowtieLog('SeqToAnnot.log',$i+1);
-			$alignmentResult = parseAlignment('SeqToAnnot.sam');
+			parseBowtieLog("$outputPath/SeqToAnnot.log",$i+1);
+			$alignmentResult = parseAlignment("$outputPath/SeqToAnnot.sam");
 			updateAnnotHash($alignmentResult,$i+1);		
 		}
 		else {
@@ -344,13 +346,13 @@ sub runAnnotationPipeline {
 		}
 	
 		# remove tmp files
-		system("rm SeqToAnnot.fasta SeqToAnnot.sam SeqToAnnot.log");
+		system("rm $outputPath/SeqToAnnot.fasta $outputPath/SeqToAnnot.sam $outputPath/SeqToAnnot.log");
 	}
 }
 
 sub writeSeqToAnnot {
 	my $lengthFilter = $_[0];
-	my $filename = 'SeqToAnnot.fasta';
+	my $filename = "$outputPath/SeqToAnnot.fasta";
 	my $seqKey;
 	my $fh;
 
@@ -592,7 +594,6 @@ sub generateGraphs {
 			    y_label => 'Percentage',
 			    y_label_position => 0.5,
 				y_number_format => "%.2f",
-		#		y_number_format => "%.2f\n",
 			    borderclrs => undef,
 			    dclrs => ['blue'],
 			    show_values => 1,
@@ -623,29 +624,17 @@ sub writeHtmlReport {
 		my $alignPathName = $sampleFileNames[$i].'.readAlignments.png';
 		my $alignPath = getValidFilename($i, $alignPathName, File::Spec->catdir($outputPath,'graphs'));
 		$quantTable->addRow(($$logHash{'quantStats'}[$i]{'filename'},
-					     $$logHash{'quantStats'}[$i]{'totalReads'},				 
+				     $$logHash{'quantStats'}[$i]{'totalReads'},				 
 				     '<table><tr></tr><tr><td>'.$$logHash{'quantStats'}[$i]{'trimmedReads'}.'&nbsp;/&nbsp;'.$$logHash{'quantStats'}[$i]{'trimmedUniq'}.'</td>'.'</tr></table>',
 				     $$logHash{'quantStats'}[$i]{'mirnaReads'}.'&nbsp;/&nbsp;'.$$logHash{'quantStats'}[$i]{'mirnaReadsFiltered'},
-					 $$logHash{'quantStats'}[$i]{'mirnaUniqFiltered'},
+				     $$logHash{'quantStats'}[$i]{'mirnaUniqFiltered'},
 				     $$logHash{'quantStats'}[$i]{'hairpinReads'},
 				     $$logHash{'quantStats'}[$i]{'ornaReads'},
 				     $$logHash{'quantStats'}[$i]{'mrnaReads'},
 				     $$logHash{'quantStats'}[$i]{'remReads'},
-		#		     '<table><tr></tr><tr><td class="thumbnail1"><img src="../'.$readPath.'" width="100px" height="50px"><span><img src="../'.$readPath.'"></span></td><td class="thumbnail2"><img src="../'.$alignPath.'" width="100px" height="50px"><span><img src="../'.$alignPath.'"></span></td></tr></table>'));
-				     '<table><tr></tr><tr><td class="thumbnail1"><img src="../'.$readPath.'" width="100px" height="50px"><span><img src="../'.$readPath.'"></span></td><td class="thumbnail2"><img src="../'.$alignPath.'" width="100px" height="50px"><span><img src="../'.$alignPath.'"></span></td></tr></table>'));
-					 }
-					 
-		#$quantTable->addRow(($$logHash{'quantStats'}[$i]{'filename'},
-		#		     $$logHash{'quantStats'}[$i]{'totalReads'},
-		#		     '<table><tr></tr><tr><td>'.$$logHash{'quantStats'}[$i]{'trimmedReads'}.'<br>('.$$logHash{'quantStats'}[$i]{'trimmedUniq'}.')</td>'.
-		#		     '<td class="thumbnail1"><img src="'.$readPathGraph/.$readPathName.'" width="100px" height="50px"><span><img src="../'.$readPath.'"></span></td></tr></table>',
-		#		     $$logHash{'quantStats'}[$i]{'mirnaReads'}.' / '.$$logHash{'quantStats'}[$i]{'mirnaReadsFiltered'}.'<br>('.$$logHash{'quantStats'}[$i]{'mirnaUniqFiltered'}.')',
-		#		     $$logHash{'quantStats'}[$i]{'hairpinReads'},
-		#		     $$logHash{'quantStats'}[$i]{'ornaReads'},
-		#		     $$logHash{'quantStats'}[$i]{'mrnaReads'},
-		#		     $$logHash{'quantStats'}[$i]{'remReads'},
-		#		     '<table><tr></tr><tr><td class="thumbnail2"><img src="../'.$alignPath.'" width="100px" height="50px"><span><img src="../'.$alignPath.'"></span></td></tr></table>'));
-					 
+				     #'<table><tr></tr><tr><td class="thumbnail1"><img src="../'.$readPath.'" width="100px" height="50px"><span><img src="../'.$readPath.'"></span></td><td class="thumbnail2"><img src="../'.$alignPath.'" width="100px" height="50px"><span><img src="../'.$alignPath.'"></span></td></tr></table>'));
+				     '<table><tr></tr><tr><td class="thumbnail1"><img src="./graphs/'.$readPathName.'" width="100px" height="50px"><span><img src="./graphs/'.$readPathName.'"></span></td><td class="thumbnail2"><img src="./graphs/'.$alignPathName.'" width="100px" height="50px"><span><img src="./graphs/'.$alignPathName.'"></span></td></tr></table>'));
+		}										 
 					 
 	$annotTable->setClass('tableBlue');
 	$annotTable->setWidth(600);
