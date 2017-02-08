@@ -30,9 +30,12 @@ use GD::Graph::hbars;
 use File::Basename;
 use File::Spec;
 use Data::Dumper;
+use String::Util qw(trim);
 
 
 ## Path to programs, by default miRge will use its own copies of the public tools bowtie and cutadapt within the miRge.seqUtils folder
+my $trim5 = 0;
+my $trim3 = 0;
 my $miRgePath = abs_path($0);
 my $version = "2.0";
 local $ENV{PATH} = "$ENV{PATH}:".$miRgePath;
@@ -48,14 +51,18 @@ my $settings={};
 my $help;
 my @sampleFiles;
 my @sampleFileNames;
+my @sampleNames;
 my $phred64 = '';
 my $isomirDiff = '';
 my $versionAsk = '';
 
-GetOptions($settings,('help' => \$help,'version' => \$versionAsk,'outputDir=s','adapter=s','species=s','CPU=s','SampleFiles=s','isomirCutoff=s', 'bowtie=s', 'phred64' => \$phred64, 'diff-isomirs' => \$isomirDiff));
-
+GetOptions($settings,('help' => \$help,'version' => \$versionAsk,'outputHTML=s','trim5=s','trim3=s','outputDir=s','adapter=s','species=s','CPU=s','SampleNames=s','SampleFiles=s','isomirCutoff=s', 'bowtie=s', 'phred64' => \$phred64, 'diff-isomirs' => \$isomirDiff));
+$trim5 = $$settings{trim5}||"0";
+$trim3 = $$settings{trim3}||"0";
 @sampleFiles = split(',', $$settings{'SampleFiles'});
+
 for (my $i=0; $i<(@sampleFiles); $i++) {
+    $sampleFiles[$i] = trim($sampleFiles[$i]); 
 	unless(-e $sampleFiles[$i]) {
 		die "$sampleFiles[$i] cannot be found, please check the paths of the sample files.";
 	}
@@ -63,6 +70,12 @@ for (my $i=0; $i<(@sampleFiles); $i++) {
 	$sampleFileNames[$i] = $1;
 }
 
+if(exists($$settings{'SampleNames'})){
+    @sampleNames = split(',', $$settings{'SampleNames'});
+}
+else{
+    @sampleNames = @sampleFiles; 
+}
 
 my $adapter = $$settings{adapter}||"none";
 if($adapter eq 'illumina'){
@@ -92,8 +105,9 @@ my $logHash = {}; # two primary keys annot and quant
 my $graphHash = {};
 my $tStamp = int(time);
 my $outputPath = $$settings{outputDir}||'miRge.'.$tStamp;
-system('mkdir '.$outputPath);
-system('mkdir '.$outputPath.'/graphs');
+my $outputHTML = $$settings{outputHTML}||"report.html";
+system('mkdir -p '.$outputPath);
+system('mkdir -p '.$outputPath.'/graphs');
 
 my $t;
 my $annotNames = ['exact miRNA', 'hairpin miRNA', 'non miRNA/mRNA RNA', 'mRNA', 'isomiR miRNA'];
@@ -227,22 +241,25 @@ sub checkBowtie {
 sub runQuantitationPipeline {
 	my $samplePrefix;
 	my $cleanedReads;
+	my $cleanedReads2;
 	my $collapsedReads;
 	my $i;
 	
 	for ($i=0;$i<scalar(@sampleFiles);$i++) {
 		print "Processing $sampleFiles[$i] ";
 		$$logHash{'quantStats'}[$i]{'filename'} = $sampleFiles[$i];
+		$$logHash{'quantStats'}[$i]{'name'} = $sampleNames[$i];
 		$samplePrefix = basename($sampleFiles[$i]);
 		$samplePrefix =~ s/\.fastq// ;
 		$cleanedReads = $outputPath."/".$samplePrefix.".trim.fastq";
+		$cleanedReads2 = $outputPath."/".$samplePrefix.".2.trim.fastq";
 	
-		trimRaw($sampleFiles[$i], $cleanedReads, $i);
+		trimRaw($sampleFiles[$i], $cleanedReads2, $i);
 		print "cpuTime-trim:$$logHash{'quantStats'}[$i]{'cpuTime-trim'}, ";
-
+        system("cutadapt -u $trim5 -u -$trim3 $cleanedReads2 > $cleanedReads") == 0 or die "Error: Couldn't trim first $trim5 and last $trim3 bases!\n";
 		quantReads($cleanedReads, $i);
 		print "cpuTime-uniq:$$logHash{'quantStats'}[$i]{'cpuTime-uniq'}\n";
-		system("rm $cleanedReads");
+		system("rm $cleanedReads $cleanedReads2");
 	}
 }
 
@@ -574,7 +591,7 @@ sub generateGraphs {
 		
 		$graph = GD::Graph::bars->new(600,300);
 		$countMax = max @{$graphData};
-		$graph->set(title => "$sampleFiles[$i] (based on $$logHash{'quantStats'}[$i]{'trimmedReads'} reads)",
+		$graph->set(title => "$sampleNames[$i] (based on $$logHash{'quantStats'}[$i]{'trimmedReads'} reads)",
 			    x_label => 'Read Length',
 			    x_label_position => 0.5,
 			    x_label_skip => 5,
@@ -591,7 +608,7 @@ sub generateGraphs {
 		close $fh;
 
 		$graph = GD::Graph::hbars->new(600,300);
-		$graph->set(title => "$sampleFiles[$i] (based on $$logHash{'quantStats'}[$i]{'trimmedReads'} reads)",
+		$graph->set(title => "$sampleNames[$i] (based on $$logHash{'quantStats'}[$i]{'trimmedReads'} reads)",
 			    y_label => 'Percentage',
 			    y_label_position => 0.5,
 				y_number_format => "%.2f",
@@ -610,11 +627,12 @@ sub generateGraphs {
 }
 
 sub writeHtmlReport {
-	my $filename = $outputPath.'/report.html';
+	my $filename = $outputHTML;#$outputPath.'/'.$outputHTML;
 	my $fh;
 	my $i;
 	my $annotTable = new HTML::Table(0,0);
 	my $quantTable = new HTML::Table(0,0);	
+	my $fileTable = new HTML::Table(0,0);	
 	
 	$quantTable->setClass('tableBlue');
 	$quantTable->setWidth(1000);
@@ -624,7 +642,7 @@ sub writeHtmlReport {
 		my $readPath = getValidFilename($i, $readPathName, File::Spec->catdir($outputPath,'graphs'));
 		my $alignPathName = $sampleFileNames[$i].'.readAlignments.png';
 		my $alignPath = getValidFilename($i, $alignPathName, File::Spec->catdir($outputPath,'graphs'));
-		$quantTable->addRow(($$logHash{'quantStats'}[$i]{'filename'},
+		$quantTable->addRow(($$logHash{'quantStats'}[$i]{'name'},
 				     $$logHash{'quantStats'}[$i]{'totalReads'},				 
 				     '<table><tr></tr><tr><td>'.$$logHash{'quantStats'}[$i]{'trimmedReads'}.'&nbsp;/&nbsp;'.$$logHash{'quantStats'}[$i]{'trimmedUniq'}.'</td>'.'</tr></table>',
 				     $$logHash{'quantStats'}[$i]{'mirnaReads'}.'&nbsp;/&nbsp;'.$$logHash{'quantStats'}[$i]{'mirnaReadsFiltered'},
@@ -646,11 +664,18 @@ sub writeHtmlReport {
 				     $$logHash{'annotStats'}[$i]{'readsAligned'},
 				     sprintf("%.2f",$$logHash{'annotStats'}[$i]{'cpuTime'})));
 	}
-	
+	$fileTable->setClass('tableBlue');
+    $fileTable->setWidth(600);
+    $fileTable->addRow(('Files'));
+    $fileTable->addRow('<a href="miR.Counts.csv">miRNA Read Counts</a>');
+    $fileTable->addRow('<a href="miR.RPM.csv">miRNA RPM</a>');
+    $fileTable->addRow('<a href="mapped.csv">miRNA mapped</a>');
+    $fileTable->addRow('<a href="unmapped.csv">miRNA unmapped</a>');
 	open $fh, ">", $filename;
 	print $fh htmlHeader();
 	print $fh "<h1>miRge Results</h1>\n<h2>Sample Result(s)</h2>\n";
-	print $fh $quantTable, "\n<br>\n<h2>Annotation summary of unique sequences from sample set and processing time.</h2>\n";
+	print $fh $quantTable, "\n<br>\n<h2>Downloadable Files</h2>\n";
+    print $fh $fileTable, "\n<br>\n<h2>Annotation summary of unique sequences from sample set and processing time</h2>\n";
 	print $fh $annotTable, "\n</body>\n</html>\n";
 	close $fh;
 }
@@ -834,7 +859,7 @@ sub writeDataToCSV {
 	open $fh, ">", $mirCountsFile;
 	print $fh "miRNA";
 	for ($i=0;$i<scalar(@sampleFiles);$i++) {
-			print $fh ", $sampleFiles[$i]";
+			print $fh ", $sampleNames[$i]";
 		}
 	print $fh "\n";
 	
@@ -856,7 +881,7 @@ sub writeDataToCSV {
 	open $fh, ">", $mirRPMFile;
 	print $fh "miRNA";
 	for ($i=0;$i<scalar(@sampleFiles);$i++) {
-			print $fh ", $sampleFiles[$i]";
+			print $fh ", $sampleNames[$i]";
 		}
 	print $fh "\n";
 
