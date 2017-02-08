@@ -546,7 +546,7 @@ sub filter {
 	
 	for ($i=0; $i<scalar(@sampleFiles); $i++) {
 		if($$logHash{'quantStats'}[$i]{'mirnaReadsFiltered'} == 0){
-			die "No miRNA reads were found in sample $sampleFiles[$i]. Please check your files and provided arguments.\n";
+			print STDERR "Warning: No miRNA reads were found in sample $sampleFiles[$i]. Please check your files and provided arguments.\n";
 		}
 	}
 }
