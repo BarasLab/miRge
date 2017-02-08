@@ -63,6 +63,7 @@ for (my $i=0; $i<(@sampleFiles); $i++) {
 	$sampleFileNames[$i] = $1;
 }
 
+
 my $adapter = $$settings{adapter}||"none";
 if($adapter eq 'illumina'){
 	$adapter = 'TGGAATTCTCGGGTGCCAAGGAACTCCAG';
@@ -232,7 +233,7 @@ sub runQuantitationPipeline {
 	for ($i=0;$i<scalar(@sampleFiles);$i++) {
 		print "Processing $sampleFiles[$i] ";
 		$$logHash{'quantStats'}[$i]{'filename'} = $sampleFiles[$i];
-		$samplePrefix = $sampleFiles[$i];
+		$samplePrefix = basename($sampleFiles[$i]);
 		$samplePrefix =~ s/\.fastq// ;
 		$cleanedReads = $outputPath."/".$samplePrefix.".trim.fastq";
 	
@@ -248,7 +249,7 @@ sub runQuantitationPipeline {
 sub trimRaw {
 	my $infile = $_[0];
 	my $outfile = $_[1];
-	my $logfile = "$outputPath/$infile.log";
+	my $logfile = "$outputPath/" . basename($infile) . ".log";
 	my $sampleIndex = $_[2];
 	my $fileText;
 	my $fh;
