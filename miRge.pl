@@ -322,7 +322,8 @@ sub runAnnotationPipeline {
 	my $alignmentResult;	   
 
 	my $lengthFilters = [-26,25,0,0,0];
-	my $bwtCmd = "$bowtieBinary --threads $numCPU";
+	my $bwtCmd = "$bowtieBinary -a --best --strata --threads $numCPU";
+# change to use --best --strata -a based on http://rnajournal.cshlp.org/content/22/8/1120.full
 	if($phred64){
 		$bwtCmd = "$bwtCmd --phred64-quals";
 	}
@@ -347,6 +348,7 @@ sub runAnnotationPipeline {
 		# run alignment
 		print "Starting Annotation-$$annotNames[$i] ";
 		$$logHash{'annotStats'}[$i+1]{'cpuTime'} = time;
+        print STDERR "$$bwtCmdLines[$i]\n";
 		$alignmentStatus = system($$bwtCmdLines[$i]);
 		$$logHash{'annotStats'}[$i+1]{'cpuTime'} = time - $$logHash{'annotStats'}[$i+1]{'cpuTime'}; # in seconds
 		$alignmentStatus = $alignmentStatus >> 8;
