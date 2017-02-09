@@ -52,7 +52,7 @@ my $phred64 = '';
 my $isomirDiff = '';
 my $versionAsk = '';
 
-GetOptions($settings,('help' => \$help,'version' => \$versionAsk,'adapter=s','species=s','CPU=s','SampleFiles=s','isomirCutoff=s', 'bowtie=s', 'phred64' => \$phred64, 'diff-isomirs' => \$isomirDiff));
+GetOptions($settings,('help' => \$help,'version' => \$versionAsk,'outputDir=s','adapter=s','species=s','CPU=s','SampleFiles=s','isomirCutoff=s', 'bowtie=s', 'phred64' => \$phred64, 'diff-isomirs' => \$isomirDiff));
 
 @sampleFiles = split(',', $$settings{'SampleFiles'});
 for (my $i=0; $i<(@sampleFiles); $i++) {
@@ -62,6 +62,7 @@ for (my $i=0; $i<(@sampleFiles); $i++) {
 	$sampleFiles[$i] =~ m/\/?([^\/]+$)/;
 	$sampleFileNames[$i] = $1;
 }
+
 
 my $adapter = $$settings{adapter}||"none";
 if($adapter eq 'illumina'){
@@ -90,7 +91,7 @@ my $readLengthHash = {}; # key is length
 my $logHash = {}; # two primary keys annot and quant
 my $graphHash = {};
 my $tStamp = int(time);
-my $outputPath = 'miRge.'.$tStamp;
+my $outputPath = $$settings{outputDir}||'miRge.'.$tStamp;
 system('mkdir '.$outputPath);
 system('mkdir '.$outputPath.'/graphs');
 
@@ -232,7 +233,7 @@ sub runQuantitationPipeline {
 	for ($i=0;$i<scalar(@sampleFiles);$i++) {
 		print "Processing $sampleFiles[$i] ";
 		$$logHash{'quantStats'}[$i]{'filename'} = $sampleFiles[$i];
-		$samplePrefix = $sampleFiles[$i];
+		$samplePrefix = basename($sampleFiles[$i]);
 		$samplePrefix =~ s/\.fastq// ;
 		$cleanedReads = $outputPath."/".$samplePrefix.".trim.fastq";
 	
@@ -248,7 +249,7 @@ sub runQuantitationPipeline {
 sub trimRaw {
 	my $infile = $_[0];
 	my $outfile = $_[1];
-	my $logfile = "$outputPath/$infile.log";
+	my $logfile = "$outputPath/" . basename($infile) . ".log";
 	my $sampleIndex = $_[2];
 	my $fileText;
 	my $fh;
@@ -1115,6 +1116,10 @@ miRge.pl takes the following arguments:
 						The path to the system's bowtie binary
 						
 
+=item --outputDir
+
+						Optional output path to write analysis results
+						
 =back
 
 
