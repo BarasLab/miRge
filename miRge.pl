@@ -348,7 +348,6 @@ sub runAnnotationPipeline {
 		# run alignment
 		print "Starting Annotation-$$annotNames[$i] ";
 		$$logHash{'annotStats'}[$i+1]{'cpuTime'} = time;
-        print STDERR "$$bwtCmdLines[$i]\n";
 		$alignmentStatus = system($$bwtCmdLines[$i]);
 		$$logHash{'annotStats'}[$i+1]{'cpuTime'} = time - $$logHash{'annotStats'}[$i+1]{'cpuTime'}; # in seconds
 		$alignmentStatus = $alignmentStatus >> 8;
@@ -493,7 +492,6 @@ sub summarize {
 }
 
 sub miRNAmerge {
-	my $mergeFile;
 	my $fh;
 	my $line;
 	my $i;
@@ -629,7 +627,7 @@ sub generateGraphs {
 }
 
 sub writeHtmlReport {
-	my $filename = $outputHTML;#$outputPath.'/'.$outputHTML;
+	my $filename = ($$settings{outputHTML}) ? $outputHTML : $outputPath . "/" . $outputHTML;
 	my $fh;
 	my $i;
 	my $annotTable = new HTML::Table(0,0);
@@ -673,6 +671,10 @@ sub writeHtmlReport {
     $fileTable->addRow('<a href="miR.RPM.csv">miRNA RPM</a>');
     $fileTable->addRow('<a href="mapped.csv">miRNA mapped</a>');
     $fileTable->addRow('<a href="unmapped.csv">miRNA unmapped</a>');
+    if($isomirDiff){
+        $fileTable->addRow('<a href="isomirs.csv">miRNA isomirs</a>');
+        $fileTable->addRow('<a href="isomirs.samples.csv">miRNA isomirs samples</a>');
+    }
 	open $fh, ">", $filename;
 	print $fh htmlHeader();
 	print $fh "<h1>miRge Results</h1>\n<h2>Sample Result(s)</h2>\n";
