@@ -698,7 +698,7 @@ sub writeDataToCSV {
 	open $fh, ">", $mappedFile;
 	print $fh "uniqueSequence, annotFlag, $$annotNames[0], $$annotNames[1], $$annotNames[2], $$annotNames[3], $$annotNames[4]";
 	for ($i=0;$i<scalar(@sampleFiles);$i++) {
-		print $fh ", $sampleFiles[$i]";
+		print $fh ", $sampleNames[$i]";
 	}
 	print $fh "\n";
 	# a hash to compare isomirs to their parent mirnas across samples
@@ -841,7 +841,7 @@ sub writeDataToCSV {
 	open $fh, ">", $unmappedFile;
 	print $fh "uniqueSequence, annotFlag, $$annotNames[0], $$annotNames[1], $$annotNames[2], $$annotNames[3], $$annotNames[4]";
 	for ($i=0;$i<scalar(@sampleFiles);$i++) {
-			print $fh ", $sampleFiles[$i]";
+			print $fh ", $sampleNames[$i]";
 		}
 	print $fh "\n";
 	foreach $seqKey (keys %{$seqHash}) {
