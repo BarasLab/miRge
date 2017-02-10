@@ -106,8 +106,6 @@ my $graphHash = {};
 my $tStamp = int(time);
 my $outputPath = $$settings{outputDir}||'miRge.'.$tStamp;
 my $outputHTML = $$settings{outputHTML}||"report.html";
-system('mkdir -p '.$outputPath);
-system('mkdir -p '.$outputPath.'/graphs');
 
 my $t;
 my $annotNames = ['exact miRNA', 'hairpin miRNA', 'non miRNA/mRNA RNA', 'mRNA', 'isomiR miRNA'];
@@ -117,6 +115,8 @@ pod2usage( -verbose => 1) if( $help );
 pod2usage( -verbose => 1) if( @sampleFiles<1 );
 pod2usage({ -message => "You must provide an integral number of cores to use.", -verbose => 0}) if( $numCPU =~ m/\D/ );
 pod2usage({ -message => "You must provide a species type.", -verbose => 0}) if( $speciesType eq "none" );
+system('mkdir -p '.$outputPath);
+system('mkdir -p '.$outputPath.'/graphs');
 
 
 my $mirge_start_time = time;
