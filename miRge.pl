@@ -757,12 +757,12 @@ sub writeDataToCSV {
 		open $sh, ">", $isomirSampleFile;
 		print $sh "miRNA";
 		print $fh "miRNA, sequence";
-		for ($i=0;$i<scalar(@sampleFiles);$i++) {
-			print $fh ", $sampleFiles[$i]";
-			print $sh ", $sampleFiles[$i] isomir+miRNA Entropy";
-			print $sh ", $sampleFiles[$i] % Canonical Sequence";
-			print $sh ", $sampleFiles[$i] Canonical RPM";
-			print $sh ", $sampleFiles[$i] Top Isomir RPM";
+		for ($i=0;$i<scalar(@sampleNames);$i++) {
+			print $fh ", $sampleNames[$i]";
+			print $sh ", $sampleNames[$i] isomir+miRNA Entropy";
+			print $sh ", $sampleNames[$i] % Canonical Sequence";
+			print $sh ", $sampleNames[$i] Canonical RPM";
+			print $sh ", $sampleNames[$i] Top Isomir RPM";
 		}
 		print $fh ", Entropy";
 		print $fh "\n";
