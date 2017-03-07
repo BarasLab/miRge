@@ -119,6 +119,8 @@ system('mkdir -p '.$outputPath);
 system('mkdir -p '.$outputPath.'/graphs');
 
 
+system('mkdir -p '.$outputPath);
+system('mkdir -p '.$outputPath.'/graphs');
 my $mirge_start_time = time;
 print "\nChecking for bowtie and indices ...\n";
 $t = time;
