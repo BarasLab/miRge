@@ -700,9 +700,9 @@ sub writeDataToCSV {
 	my $i;
 
 	open $fh, ">", $mappedFile;
-	print $fh "uniqueSequence, annotFlag, $$annotNames[0], $$annotNames[1], $$annotNames[2], $$annotNames[3], $$annotNames[4]";
+	print $fh "uniqueSequence,annotFlag,$$annotNames[0],$$annotNames[1],$$annotNames[2],$$annotNames[3],$$annotNames[4]";
 	for ($i=0;$i<scalar(@sampleFiles);$i++) {
-		print $fh ", $sampleNames[$i]";
+		print $fh ",$sampleNames[$i]";
 	}
 	print $fh "\n";
 	# a hash to compare isomirs to their parent mirnas across samples
@@ -746,7 +746,7 @@ sub writeDataToCSV {
 				push(@{$isomirHash{$key}{$key2}{$seqKey}}, $readCount);
 			}
 			push(@entry, "\n");
-			print $fh join(', ', @entry);
+			print $fh join(',', @entry);
 		}
 	}
 	close $fh;
@@ -756,15 +756,15 @@ sub writeDataToCSV {
 		my $sh;
 		open $sh, ">", $isomirSampleFile;
 		print $sh "miRNA";
-		print $fh "miRNA, sequence";
+		print $fh "miRNA,sequence";
 		for ($i=0;$i<scalar(@sampleNames);$i++) {
-			print $fh ", $sampleNames[$i]";
-			print $sh ", $sampleNames[$i] isomir+miRNA Entropy";
-			print $sh ", $sampleNames[$i] % Canonical Sequence";
-			print $sh ", $sampleNames[$i] Canonical RPM";
-			print $sh ", $sampleNames[$i] Top Isomir RPM";
+			print $fh ",$sampleNames[$i]";
+			print $sh ",$sampleNames[$i] isomir+miRNA Entropy";
+			print $sh ",$sampleNames[$i] % Canonical Sequence";
+			print $sh ",$sampleNames[$i] Canonical RPM";
+			print $sh ",$sampleNames[$i] Top Isomir RPM";
 		}
-		print $fh ", Entropy";
+		print $fh ",Entropy";
 		print $fh "\n";
 		print $sh "\n";
 		my $miRNA;
@@ -843,19 +843,19 @@ sub writeDataToCSV {
 	}
 	
 	open $fh, ">", $unmappedFile;
-	print $fh "uniqueSequence, annotFlag, $$annotNames[0], $$annotNames[1], $$annotNames[2], $$annotNames[3], $$annotNames[4]";
+	print $fh "uniqueSequence,annotFlag,$$annotNames[0],$$annotNames[1],$$annotNames[2],$$annotNames[3],$$annotNames[4]";
 	for ($i=0;$i<scalar(@sampleFiles);$i++) {
-			print $fh ", $sampleNames[$i]";
+			print $fh ",$sampleNames[$i]";
 		}
 	print $fh "\n";
 	foreach $seqKey (keys %{$seqHash}) {
 		if ($$seqHash{$seqKey}{'annot'}[0]==0) {
 			print $fh "$seqKey";
 			for ($i=0;$i<6;$i++) {
-				print $fh ", $$seqHash{$seqKey}{'annot'}[$i]";
+				print $fh ",$$seqHash{$seqKey}{'annot'}[$i]";
 			}
 			for ($i=0;$i<scalar(@sampleFiles);$i++) {
-				print $fh ", ", $$seqHash{$seqKey}{'quant'}[$i] // 0;
+				print $fh ",", $$seqHash{$seqKey}{'quant'}[$i] // 0;
 			}
 			print $fh "\n";
 		}
@@ -865,20 +865,20 @@ sub writeDataToCSV {
 	open $fh, ">", $mirCountsFile;
 	print $fh "miRNA";
 	for ($i=0;$i<scalar(@sampleFiles);$i++) {
-			print $fh ", $sampleNames[$i]";
+			print $fh ",$sampleNames[$i]";
 		}
 	print $fh "\n";
 	
 	print $fh "miRNAtotal";
 	for ($i=0;$i<scalar(@sampleFiles);$i++) {
-			print $fh ", $$logHash{'quantStats'}[$i]{'mirnaReadsFiltered'}";
+			print $fh ",$$logHash{'quantStats'}[$i]{'mirnaReadsFiltered'}";
 		}
 	print $fh "\n";
 
 	foreach $mirKey (sort(keys %{$mirHash})) {
 		print $fh "$mirKey";
 		for ($i=0;$i<scalar(@sampleFiles);$i++) {
-			print $fh ", ", $$mirHash{$mirKey}{'quant'}[$i] // 0;
+			print $fh ",", $$mirHash{$mirKey}{'quant'}[$i] // 0;
 		}
 		print $fh "\n";
 	}
@@ -887,7 +887,7 @@ sub writeDataToCSV {
 	open $fh, ">", $mirRPMFile;
 	print $fh "miRNA";
 	for ($i=0;$i<scalar(@sampleFiles);$i++) {
-			print $fh ", $sampleNames[$i]";
+			print $fh ",$sampleNames[$i]";
 		}
 	print $fh "\n";
 
@@ -895,10 +895,10 @@ sub writeDataToCSV {
 		print $fh "$mirKey";
 		for ($i=0;$i<scalar(@sampleFiles);$i++) {
 			if($$logHash{'quantStats'}[$i]{'mirnaReadsFiltered'}){
-				print $fh ", ", 1000000*$$mirHash{$mirKey}{'quant'}[$i]/$$logHash{'quantStats'}[$i]{'mirnaReadsFiltered'};
+				print $fh ",", 1000000*$$mirHash{$mirKey}{'quant'}[$i]/$$logHash{'quantStats'}[$i]{'mirnaReadsFiltered'};
 			}
 			else{
-				print $fh ", ", 0;
+				print $fh ",", 0;
 			}
 		}
 		print $fh "\n";
