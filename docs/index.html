@@ -1,11 +1,9 @@
 <!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
-<!-- saved from url=(0047)http://atlas.pathology.jhu.edu/baras/miRge.html -->
 <html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en" lang="en"><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
 <title>miRge - an ultrafast miRNA aligner</title>
 <meta name="keywords" content="Alexander Baras, software, computation, miRNA, microRNA, miRge">
 <meta name="description" content="miRge is a rational, efficient, and modular approach to miRNA RNA-seq data processing.">
 <link rel="stylesheet" type="text/css" href="./miRge/style.css" media="screen">
-<link rel="shortcut icon" href="http://atlas.pathology.jhu.edu/baras/jhhfavicon.ico">
 </head>
 <body>
 <div id="header">
@@ -77,10 +75,10 @@ multiplex run. In head-to-head comparisons for single sample analyses
             perl miRge.pl --species mouse --diff-isomirs --phred64 --bowtie /usr/local/bin/bowtie --SampleFiles sample1.fastq,sample2.fastq
 </pre></li>
 <li>A help screen can be accessed via perl miRge.pl --help.</li>
-<li><a href="http://atlas.pathology.jhu.edu/baras/miRge/miRge.exampleOutput/report.html">Click here to see the summary output</a> from miRge.</li>
+<li><a href="./miRge/miRge.exampleOutput/report.html">Click here to see the summary output</a> from miRge.</li>
 <p></p>
 <p>
-</p><li><b><a href="http://atlas.pathology.jhu.edu/baras/miRge/miRge_help.html">Click here</a> for more detailed instruction.</b></li>
+</p><li><b><a href="./miRge/miRge_help.html">Click here</a> for more detailed instruction.</b></li>
 <p></p>
 
 </div>
@@ -88,7 +86,7 @@ multiplex run. In head-to-head comparisons for single sample analyses
 <h2>The miRge method</h2>
 <p>
 miRge runs sequentially through a number of prealignment and alignment steps.  It optionally uses cutadapt to filter and/or trim sequences.  It then collapses reads together, creates a single file from multiple fastq runs (if multiple runs are provided) and brings this material through the alignment steps. Of note, it aligns with both stringent and relaxed parameters to miRNAs to capture perfect miRNA hits and isomiRs only after better hits have been purged by alignment to other RNA species.</p>
-<img src="http://atlas.pathology.jhu.edu/baras/miRge/miRge_schematic.png" width="700">
+<img src="./miRge/miRge_schematic.png" width="700">
 
 </div>
 </div>
