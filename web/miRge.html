@@ -1,0 +1,97 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
+<!-- saved from url=(0047)http://atlas.pathology.jhu.edu/baras/miRge.html -->
+<html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en" lang="en"><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+<title>miRge - an ultrafast miRNA aligner</title>
+<meta name="keywords" content="Alexander Baras, software, computation, miRNA, microRNA, miRge">
+<meta name="description" content="miRge is a rational, efficient, and modular approach to miRNA RNA-seq data processing.">
+<link rel="stylesheet" type="text/css" href="./miRge/style.css" media="screen">
+<link rel="shortcut icon" href="http://atlas.pathology.jhu.edu/baras/jhhfavicon.ico">
+</head>
+<body>
+<div id="header">
+<h1>miRge - a rational and efficient approach to miRNA-seq</h1>
+</div>
+<div id="content">
+<div id="right">
+<h2>miRge</h2>
+<p> miRge is a logical, ultrafast, small RNA-seq solution to process samples in a highly multiplexed fashion, resulting in dramatically decreased computational requirements when
+ processing sets of samples in a single run. It utilizes a unique sequential alignment algorithm for annotation of small RNA-seq data. Output is given for miRNAs as raw reads
+ and reads per million (RPM) in addition to isomiR data and reads for all other RNA species (tRNA, rRNA, snoRNA, mRNA). IsomiR entropy can be determined for each sample or across samples in a 
+multiplex run. In head-to-head comparisons for single sample analyses
+ with miRExpress 2.0, sRNAbench, omiRAs and miRDeep2, miRge was 3 to 28-fold faster and always aligned more miRNA reads per sample. In a single multiplex experiment, we fully
+ annotated all RNA species in 100 separate samples in 40 minutes. These features make miRge an ideal tool for high-throughput users. miRge is multithreaded to take advantage
+ multicore computer architectures.</p>
+<p>miRge was designed in Linux (Ubuntu 14+ LTS) but is compatible with other platforms.
+</p>
+
+<p>Dependencies, miRge utlizes the following tools and perl modules. Please install as per the respective developers instructions, links are provided below:
+</p><li> 1. <a href="https://github.com/marcelm/cutadapt" target="_blank">cutadapt >= 1.8 </a> - sequence read filtering and adapter trimming</li>
+<li> 2. <a href="http://bowtie-bio.sourceforge.net/index.shtml" target="_blank">Bowtie 1.1.1</a> - sequence read alignment</li>
+<li> 3. <a href="http://search.cpan.org/~lds/GD-2.56/lib/GD.pm" target="_blank">PERL GD module 2.56</a> - graphing</li>
+
+<p></p>
+
+<p>To install miRge on your Linux machine:
+</p><li> 1. Download and unzip miRge from our github repository <a href="https://github.com/BarasLab/miRge" target="_blank">(miRge@github)</a></li>
+<li> - <a href="https://github.com/BarasLab/miRge/archive/master.zip">miRge</a>, miRge perl scripts </li>
+<li> 2. Download, unzip, and place the following in the same directory as the miRge Perl script</li>
+<li> - <a href="http://atlas.pathology.jhu.edu/baras/miRge/miRge.seqLibs.tar.gz">miRge.seqLibs (681.1 Mb)</a>, precomputed bowtie indices for human, mouse, rat, fruitfly, nematode, and zebrafish formated for miRge</li>
+<li> - <a href="http://atlas.pathology.jhu.edu/baras/miRge/miRge.samples.tar.gz">miRge.samples (280.7 Mb)</a>, set of small sample files for testing installation</li>
+<p></p>
+
+</div>
+
+<div id="left">
+	<div class="box">
+			<h2>News :</h2>	
+			<p>Updates will be reported here.</p>
+	</div>
+			
+	<div class="box">
+				<h2>Links :</h2>
+				<ul>
+				<li><a href="http://bowtie-bio.sourceforge.net/index.shtml" target="_blank">Bowtie Aligner</a></li>
+				<li><a href="https://github.com/marcelm/cutadapt" target="_blank">Cutadapt</a></li>
+				<li><a href="http://bioconductor.org/" target="_blank">Bioconductor</a></li>
+				<li><a href="http://gtrnadb.ucsc.edu/" target="_blank">Genomic tRNA Database</a></li>
+				<li><a href="http://www-snorna.biotoul.fr/" target="_blank">snoRNABase</a></li>
+				<li><a href="https://github.com/cornish/HPASubC/tree/master" target="_blank">HPASubC</a></li>
+				</ul>
+	</div>
+		
+	</div>
+<div id="right">
+<h2>Running miRge</h2>
+<p>
+</p><li>miRge is run from the command line as follows:</li>
+<li><pre>Usage:
+    perl miRge.pl [--help] [--version] [--adapter
+    none|illumina|ion|sequence(s)] [--species human|mouse|rat|fruitfly|nematode|zebrafish|custom_name] [--CPU
+    #] [--diff-isomirs] [--phred64] [--bowtie /location] [--cutadapt /location] --SampleFiles sample1.fastq,sample2.fastq,...
+
+    Examples:
+
+            perl miRge.pl --help
+            perl miRge.pl --adapter illumina --species human --SampleFiles seq_file.fastq
+            perl miRge.pl --adapter ion --species human --CPU 8 --diff-isomirs --SampleFiles human1.fastq,human2.fastq,human3.fastq
+            perl miRge.pl --species mouse --diff-isomirs --phred64 --bowtie /usr/local/bin/bowtie --SampleFiles sample1.fastq,sample2.fastq
+</pre></li>
+<li>A help screen can be accessed via perl miRge.pl --help.</li>
+<li><a href="http://atlas.pathology.jhu.edu/baras/miRge/miRge.exampleOutput/report.html">Click here to see the summary output</a> from miRge.</li>
+<p></p>
+<p>
+</p><li><b><a href="http://atlas.pathology.jhu.edu/baras/miRge/miRge_help.html">Click here</a> for more detailed instruction.</b></li>
+<p></p>
+
+</div>
+<div id="right">
+<h2>The miRge method</h2>
+<p>
+miRge runs sequentially through a number of prealignment and alignment steps.  It optionally uses cutadapt to filter and/or trim sequences.  It then collapses reads together, creates a single file from multiple fastq runs (if multiple runs are provided) and brings this material through the alignment steps. Of note, it aligns with both stringent and relaxed parameters to miRNAs to capture perfect miRNA hits and isomiRs only after better hits have been purged by alignment to other RNA species.</p>
+<img src="http://atlas.pathology.jhu.edu/baras/miRge/miRge_schematic.png" width="700">
+
+</div>
+</div>
+
+
+</body></html>
