@@ -1,6 +1,6 @@
-Official documentation for miRge can be found at our main website: 
+An overview  of the approach implemented in miRge can be found at https://baraslab.github.io/miRge/.
 
-http://atlas.pathology.jhu.edu/baras/miRge.html
+Please cite https://www.ncbi.nlm.nih.gov/pubmed/26571139 when using miRge in publications, thanks!
 
 # Installation
 
@@ -46,4 +46,4 @@ From within the directory miRge is installed in, run:
 
 ## User Manual
 
-http://atlas.pathology.jhu.edu/baras/miRge/miRge_help.html
+https://baraslab.github.io/miRge/miRge/miRge_help.html
