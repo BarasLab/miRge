@@ -1,0 +1,180 @@
+<html>
+<head>
+<style>
+.tableBlue {
+	margin:0px;padding:0px;
+	box-shadow: 5px 5px 5px #888888;
+	border:1px solid #000000;
+	
+	-moz-border-radius-bottomleft:0px;
+	-webkit-border-bottom-left-radius:0px;
+	border-bottom-left-radius:0px;
+	
+	-moz-border-radius-bottomright:0px;
+	-webkit-border-bottom-right-radius:0px;
+	border-bottom-right-radius:0px;
+	
+	-moz-border-radius-topright:0px;
+	-webkit-border-top-right-radius:0px;
+	border-top-right-radius:0px;
+	
+	-moz-border-radius-topleft:0px;
+	-webkit-border-top-left-radius:0px;
+	border-top-left-radius:0px;
+}
+.tableBlue table{
+    border-collapse: collapse;
+        border-spacing: 0;
+	width:100%;
+	height:100%;
+	margin:0px;padding:0px;
+}
+.tableBlue tr:last-child td:last-child {
+	-moz-border-radius-bottomright:0px;
+	-webkit-border-bottom-right-radius:0px;
+	border-bottom-right-radius:0px;
+}
+.tableBlue table tr:first-child td:first-child {
+	-moz-border-radius-topleft:0px;
+	-webkit-border-top-left-radius:0px;
+	border-top-left-radius:0px;
+}
+.tableBlue table tr:first-child td:last-child {
+	-moz-border-radius-topright:0px;
+	-webkit-border-top-right-radius:0px;
+	border-top-right-radius:0px;
+}
+.tableBlue tr:last-child td:first-child{
+	-moz-border-radius-bottomleft:0px;
+	-webkit-border-bottom-left-radius:0px;
+	border-bottom-left-radius:0px;
+}
+.tableBlue tr:hover td{
+	background-color:#ffffff;
+}
+.tableBlue td{
+	vertical-align:middle;
+	background-color:#edf6ff;
+	border:1px solid #000000;
+	border-width:0px 1px 1px 0px;
+	text-align:right;
+	padding:7px;
+	font-size:12px;
+	font-family:Arial;
+	font-weight:normal;
+	color:#000000;
+}
+.tableBlue tr:last-child td{
+	border-width:0px 1px 0px 0px;
+}
+.tableBlue tr td:last-child{
+	border-width:0px 0px 1px 0px;
+}
+.tableBlue tr:last-child td:last-child{
+	border-width:0px 0px 0px 0px;
+}
+.tableBlue tr:first-child td{
+	background:-o-linear-gradient(bottom, #005fbf 5%, #003f7f 100%);
+	background:-webkit-gradient( linear, left top, left bottom, color-stop(0.05, #005fbf), color-stop(1, #003f7f) );
+	background:-moz-linear-gradient( center top, #005fbf 5%, #003f7f 100% );
+	filter:progid:DXImageTransform.Microsoft.gradient(startColorstr="#005fbf", endColorstr="#003f7f");	background: -o-linear-gradient(top,#005fbf,003f7f);
+	background-color:#005fbf;
+	border:0px solid #000000;
+	text-align:center;
+	border-width:0px 0px 1px 1px;
+	font-size:14px;
+	font-family:Arial;
+	font-weight:bold;
+	color:#ffffff;
+}
+.tableBlue tr:first-child:hover td{
+	background:-o-linear-gradient(bottom, #005fbf 5%, #003f7f 100%);
+	background:-webkit-gradient( linear, left top, left bottom, color-stop(0.05, #005fbf), color-stop(1, #003f7f) );
+	background:-moz-linear-gradient( center top, #005fbf 5%, #003f7f 100% );
+	filter:progid:DXImageTransform.Microsoft.gradient(startColorstr="#005fbf", endColorstr="#003f7f");	background: -o-linear-gradient(top,#005fbf,003f7f);
+	background-color:#005fbf;
+}
+.tableBlue tr:first-child td:first-child{
+	border-width:0px 0px 1px 0px;
+}
+.tableBlue tr:first-child td:last-child{
+	border-width:0px 0px 1px 1px;
+}
+
+.thumbnail1  {
+	position: relative;
+}
+.thumbnail1:hover {
+	text-decoration: none;
+}
+.thumbnail1 span { /*CSS for enlarged image*/
+	position: absolute;
+	background-color: #ffffff;
+	padding: 5px;
+	border: 4px solid black;
+	visibility: hidden;
+	color: black;
+	text-decoration: none;
+}
+.thumbnail1:hover span { /*CSS for enlarged image on hover*/
+	visibility: visible; 
+	z-index: 1;
+	top: 0px;
+	left: -625px;
+}
+
+.thumbnail2  {
+	position: relative;
+}
+.thumbnail2:hover {
+	text-decoration: none;
+}
+.thumbnail2 span { /*CSS for enlarged image*/
+	position: absolute;
+	background-color: #ffffff;
+	padding: 5px;
+	border: 4px solid black;
+	visibility: hidden;
+	color: black;
+	text-decoration: none;
+}
+.thumbnail2:hover span { /*CSS for enlarged image on hover*/
+	visibility: visible; 
+	z-index: 1;
+	top: 0px;
+	left: -625px;
+}
+
+h1 { font: bold 2.0em Arial; color: #003f7f; text-shadow: 0 0 0.1em #a0a0a0, 0 0 0.1em #a0a0a0; text-align: center}
+h2 { font: bold 1.5em Arial; color: #005fbf}
+
+</style>
+</head>
+<h1>miRge Results</h1>
+<h2>Sample Result(s)</h2>
+
+<table width="1000" class="tableBlue">
+<tbody>
+<tr><td>File name&#40;s&#41;</td><td>Total Input Reads</td><td>Trimmed Reads<br>(all / unique)</td><td>All miRNA Reads / Filtered miRNA Reads</td><td>Unique miRNAs</td><td>Hairpin Reads</td><td>Other Noncoding RNA Reads</td><td>mRNA Reads</td><td>Remaining Reads</td><td>Read Length and Composition Figures</td></tr>
+<tr><td>/usr/local/miRge/miRge.samples/human_s1.fastq</td><td>876563</td><td><table><tr></tr><tr><td>758852&nbsp;/&nbsp;126175</td></tr></table></td><td>146152&nbsp;/&nbsp;142072</td><td>200</td><td>399</td><td>428267</td><td>48094</td><td>135940</td><td><table><tr></tr><tr><td class="thumbnail1"><img src="../miRge.exampleOutput/graphs/human_s1.fastq.readDistribution.png" width="100px" height="50px"><span><img src="../miRge.exampleOutput/graphs/human_s1.fastq.readDistribution.png"></span></td><td class="thumbnail2"><img src="../miRge.exampleOutput/graphs/human_s1.fastq.readAlignments.png" width="100px" height="50px"><span><img src="../miRge.exampleOutput/graphs/human_s1.fastq.readAlignments.png"></span></td></tr></table></td></tr>
+<tr><td>/usr/local/miRge/miRge.samples/human_s2.fastq</td><td>765432</td><td><table><tr></tr><tr><td>677397&nbsp;/&nbsp;70768</td></tr></table></td><td>375197&nbsp;/&nbsp;336748</td><td>373</td><td>582</td><td>135996</td><td>4899</td><td>160723</td><td><table><tr></tr><tr><td class="thumbnail1"><img src="../miRge.exampleOutput/graphs/human_s2.fastq.readDistribution.png" width="100px" height="50px"><span><img src="../miRge.exampleOutput/graphs/human_s2.fastq.readDistribution.png"></span></td><td class="thumbnail2"><img src="../miRge.exampleOutput/graphs/human_s2.fastq.readAlignments.png" width="100px" height="50px"><span><img src="../miRge.exampleOutput/graphs/human_s2.fastq.readAlignments.png"></span></td></tr></table></td></tr>
+</tbody>
+</table>
+
+<br>
+<h2>Annotation summary of unique sequences from sample set and processing time.</h2>
+
+<table width="600" class="tableBlue">
+<tbody>
+<tr><td>Annotation-Round</td><td># Unique Seqs</td><td>cpuTime(sec)</td></tr>
+<tr><td>all sequences</td><td>188088</td><td></td></tr>
+<tr><td>exact miRNA</td><td>2106</td><td>0.22</td></tr>
+<tr><td>hairpin miRNA</td><td>367</td><td>0.61</td></tr>
+<tr><td>non miRNA/mRNA RNA</td><td>53283</td><td>1.36</td></tr>
+<tr><td>mRNA</td><td>48035</td><td>8.97</td></tr>
+<tr><td>isomiR miRNA</td><td>10160</td><td>4.39</td></tr>
+</tbody>
+</table>
+
+</body>
+</html>

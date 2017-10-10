@@ -1,0 +1,187 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en" lang="en">
+<head>
+<title>miRge - an ultrafast miRNA aligner</title>
+<meta name="keywords" content="Alexander Baras, software, computation, miRNA, microRNA, miRge" />
+<meta name="description" content="miRge is a rational, efficient, and modular approach to miRNA RNA-seq data processing." />
+<link rel="stylesheet" type="text/css" href="style.css" media="screen" />
+<link rel="shortcut icon" href="jhhfavicon.ico" />
+</head>
+<body>
+<div id="header">
+<h1>miRge - Extended Help Page</h1>
+</div>
+<div id="content">
+<div id="right">
+<p class="center"><a href="#a">miRge.pl</a> | <a href="#b">miRge-build.pl</a></p>
+<a name="a" id="a"></a>
+<h2>miRge.pl</h2>
+<p>A condensed version of this help is also available by calling perl miRge.pl --help from the command line.</p>
+
+<p> miRge usage:</p>
+<p>    
+perl miRge.pl [--help] [--version] [--adapter none|illumina|ion|your_sequence(s)] [--species human|mouse|rat|fruitfly|nematode|zebrafish|custom_name] 
+[--CPU #] [--diff-isomirs] [--phred64] [--bowtie] [--cutadapt] [--SampleFiles sample1.fastq,sample2.fastq,...]
+</p>
+
+<h2>
+Examples:</h2>
+
+       <p>perl miRge.pl --help </p>
+       <p>perl miRge.pl --adapter illumina --species human --SampleFiles seq_file.fastq (minimum parameters to run miRge)</p>
+       <p>perl miRge.pl --adapter ion --species rat --CPU 8 --phred64 --SampleFiles human1.fastq,human2.fastq,human3.fastq</p>
+       <p>perl miRge.pl --adapter TGATGATCCTA species mouse --diff-isomirs --phred64 --bowtie /usr/local/bin/bowtie --SampleFiles sample1.fastq.gz</p>
+
+
+<h2>OPTIONS</h2>
+
+<p>miRge.pl takes the following arguments:</p>
+
+<p><i>Required Parameters:</i></p>
+
+<p>--SampleFiles</p>
+
+                                                <p class="tab">Provide a comma-separated list with no intervening spaces of fastq of fastq.gz
+                                                formatted files containing all of the reads for each individual sample. The program will
+												check that all fastq/fastq.gz files are found before beginning miRge.  All files should be
+												from the same species. Files can be of any size. Again, no intervening spaces.</p>
+                                                <p>Example: --SampleFiles sample1.fastq,sample2.fastq,sample3.fastq</p>
+
+<p>--species human|mouse|rat|fruitfly|nematode|zebrafish|custom_name</p>
+
+                                                <p class="tab">Specify which reference species should be used. Used to align with
+                                                miRge provided references. Custom reference files to any species can be generated with miRge-build.pl and
+                                                can also be referenced here by their designated species name. More information on <a href="#b">miRge-build.pl</a> is below.</p>
+
+<p>--adapter none|illumina|ion|your_sequence</p>
+        <p class="tab"> Run adapter removal and quality filtering via cutadapt.
+        <p class="tab"> none: No adapater will be removed but QC filtering will occur</p>
+         <p class="tab">illumina: TGGAATTCTCGGGTGCCAAGGAACTCCAG (TruSeq small RNA kit adapater)</p>
+         <p class="tab"> ion: remove first 11 base pairs (as per miRQC protocol)</p>
+        <p class="tab"> your_sequence: Provide your own adapter sequence, such as --adapter TGGAATTCTC</p>
+		<p class="tab"> your_sequence: In a multiplex run, if different samples have different adapters, more than one adapter can be called by separating the
+adapters by a comma. Note each sample will be compared to all listed adapters.	--adapter TGGAATTCTC,CGTCTATGGC
+ 
+												
+<p><i>Optional Parameters:</i></p>
+
+<p>--help</p>
+<p class="tab">               Displays the usage message.</p>
+
+<p>--version</p>
+    <p class="tab">         Displays the version of miRge being used.</p>
+
+
+
+
+ <p>--CPU #</p>
+              <p class="tab"> Specify the number of processors to use for the trimming, QC, and alignment steps.</p>
+               <p class="tab">default: 1</p>
+
+ <p>--diff-isomirs</p>
+
+	<p class="tab">Will output two additional files, xxx.isomirs.csv and xxx.isomirs.samples.csv.  The first file has 
+       the entropy of each isomir as compared with their canonical miRNAs.  The second file contains the
+	   entropy of each miRNA across all isomirs and determines the % of miRNA reads that are canonical. 
+		This is done by dividing the sum of all non-edited, but length variable miRNA reads against the sum of
+		these reads plus all isomiR (RNA-edited) reads. This can be used
+        to flag miRNAs that are predominately non-canonical isomiRs and may represent sequencing errors.  For example, if 
+		a miRNA is only 5% canonical, that would be worrisome and suggest a possible misidentification.</p>
+      <p class="tab">default: not generated</p>
+
+
+
+       <p>--phred64</p>
+               <p class="tab">To be used when the input fastq files are known to be in phred64 format. 
+			   By default miRge attempts to infer the phred score from the first 1000 reads of each file. If this fails to detect a phred64
+               score, this parameter can be used to force phred64.</p>
+      <p class="tab">default: not used</p>
+
+        <p>--bowtie</p>
+               <p class="tab">The path to the system's bowtie binary. This will be used if bowtie is not mapped to your directory. miRge automatically
+			   checks for bowtie and indices at the start of a run and will flag a problem.
+			   To check if bowtie is mapped to your directory, type bowtie --help at the command line.
+			   If you get the bowtie help, you are good to go.  Otherwise to find bowtie on your system,
+			   type 'locate bowtie' at the command line and use the path identified. This can be useful if you run 
+			   different versions of bowtie on your system.</p>
+			   <p class="tab">default: bowtie is automatically called.</p>
+
+        <p>--cutadapt</p>
+               <p class="tab">The path to cutadapt. This will be used if cutadapt is not mapped to your directory.  You can type 'locate cutadapt' to
+			   identify the path on your machine.
+	     <p class="tab">default: cutadapt is automatically called.</p>		   
+	<a name="b" id="b"></a>		   
+<h2>miRge-build.pl</h2>
+<p>miRge-build.pl provides a way for a user to make a custom library of any species to use with miRge.  miRge-build creates 4 bowtie libraries
+ from 4 designated files.  miRge-build requires bowtie as a dependency and bowtie-build can be called if it is not on your path.</p>
+<p>Usage:</p>
+    <p>perl miRge-build.pl [--help] [--species species_name] [--mirna fasta
+    file] [--hairpin fasta file] [--other fasta file] [--mrna fasta file]</p>
+
+    <h2>Examples:</h2>
+
+<p>perl miRge-build.pl --species aardvark --mirna aardvark_mirna.fa --hairpin aardvark_hairpin.fa --other aardvark_orna.fa --mrna aardvark_refseq.fa
+
+<h2>OPTIONS</h2>
+<p>    miRge-build takes the following arguments:</p>
+
+   <p><i> Required Parameters:</i></p>
+
+    <p>--species species_name</p>
+              <p class="tab"> The name you give for the species here will be the name you use in miRge.pl when you call the species every time you use 
+			   these libraries. The species_name given here	corresponds to the directory under which these files are stored.
+                As such, we recommend that if you are using libraries you intend to update, appending a version number or an identifier
+                 to keep these unique -- such as 'human_v4'.</p>
+
+        <p>--mirna</p>
+            <p class="tab"> A fasta file consisting of mature miRNA reference sequences to align against. This can be obtained from mirbase.org.  You 
+			can edit this to the extent we did, or not. For alignment purposes, you may need to extend the shorter miRNAs with additional
+			genomic nucleotides (or a polyG run as described in Hackenberg M et al. Nucleic Acids Res. 2009:W68-76) to 25 bp.</p>
+
+        <p>--hairpin</p>
+              <p class="tab"> A fasta file consisting of hairpin miRNA reference sequences to align against. The hairpin miRNAs can be obtained from
+			  <a href="http://www.mirbase.org" target="_blank">mirBase.org</a>. 
+			  No editing of this file is necessary.</p>
+
+        <p>--other</p>
+              <p class="tab"> A fasta file consisting of the additional reference sequences to align against.
+              This file is used to identify additional sources of small noncoding RNA reads such as tRNAs, snoRNAs or rRNAs. This file can be
+			  found for most species at <a href="http://www.ensembl.org/" target="_blank">Ensembl</a> (www.ensembl.org).</p>
+
+        <p>--mrna</p>
+              <p class="tab"> A fasta file consisting of mRNAs or cDNAs.  This file can be found for most species at 
+			  <a href="http://www.ensembl.org/">Ensembl</a> (www.ensembl.org).</p>
+
+    <p><i>Optional Parameters:</i></p>
+
+        <p>--bowtie-build</p>
+                             <p class="tab">                               The path to your bowtie-build binary.</p>
+		<p>merges.csv file</p>
+			<p  class="tab">A merges.csv file is an optional file that can be created to merge similar miRNAs. The first column contains the final name
+			to be shown in the xxx.miR.Counts.csv and xxx.miR.RPM.csv files.  The second, third, fourth, etc. columns contain the names of the miRNAs
+			as present in the mirna.fa file that you wish to merge together. After miRge-build.pl creates the directory, place this file within the directory
+			itself. The file should be names 'merges.csv' so that it will be recognized. An example of such a file is given <a href="human_merges_example.csv">here</a></p>
+			<p class="tab">default: No merges.csv file is used</a>
+			<h2>Useful Information</h2>
+	<p>A few notes on making a useful library. A good searchable library likely requires some trial and error.  We have found to maximize alignment to the
+	mature miRNAs, they should be extended into their hairpins on both the 5' and 3' sides as we described in our manuscript. We have found that some 
+	reported ESTs contain miRNAs.  Once you build and test a library, it is a good idea to determine what reads mapped to your ESTs with high abundance
+	and either view them on a tool like the <a href="http://genome.ucsc.edu/" target="_blank">UCSC Genome Browser</a> or blast the sequence at
+	<a href="http://blast.ncbi.nlm.nih.gov/Blast.cgi" target="_blank">NCBI</a>. See if a miRNA or other small RNA species (snoRNA) are present in that space.
+	If you identify a miRNA, you should purge either the entire EST or that region and rebuild the library.  Otherwise, some isomiRs will incorrectly 
+	align to the mRNA file.</p>
+	<p>In certain circumstances, the sequence identity may be 100% over a stretch of 20 bases for two similar miRNAs.  Thus any sequence that is 20 bp or less
+	can align equally to two different miRNAs. In miRge, bowtie will randomly assign the sequence to one or the other.  Since we perform a collapsing
+		reads step, that single sequence may represent 1000s of individual reads and would skew to one named miRNA or the other. Many aligners have
+		tackled this problem in a number of ways. We think there is no specific way to confirm to which miRNA that sequence belongs.  Thus we have chosen 
+		to present this information as a shared miRNA such as hsa-let-7a-5p/7c-5p or hsa-miR-17-5p/106a-5p.  This naming is achieved by using the merges.csv
+		file.  It can be a useful tool to avoid wide fluctuations in reads of two similar miRNAs between samples.</p>
+
+
+
+
+</div>
+</div>
+</body>
+</html>
